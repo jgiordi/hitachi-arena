@@ -22,7 +22,7 @@ function StatsBar({ currentUser }) {
 
       const { data: deals } = await supabase
         .from('deals')
-        .select('value, points_earned, reps(name)')
+        .select('value, points_earned, rep_id, sales_reps(name)')
         .eq('period', quarter)
 
       if (deals && deals.length > 0) {
@@ -32,7 +32,7 @@ function StatsBar({ currentUser }) {
         // find top rep by points
         const repPoints = {}
         deals.forEach(d => {
-          const name = d.reps?.name || 'Unknown'
+          const name = d.sales_reps?.name || 'Unknown'
           repPoints[name] = (repPoints[name] || 0) + (d.points_earned || 0)
         })
         const topName = Object.entries(repPoints).sort((a, b) => b[1] - a[1])[0]?.[0] || ''

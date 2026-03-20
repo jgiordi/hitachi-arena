@@ -73,24 +73,55 @@ export default function Leaderboard({ currentUser }) {
 
   async function fetchLeaderboard() {
     setLoading(true)
-    const { data, error } = await supabase
-      .rpc('get_leaderboard', { period_filter: period })
 
-    if (error) {
-      console.error(error)
-      // fallback: fetch raw deals and aggregate client-side
-      const { data: deals } = await supabase
-        .from('deals')
-        .select('*, sales_reps(*)')
-        .eq('period', period === 'quarter' ? getCurrentQuarter() : getCurrentMonth())
+    // First fetch all sales_reps
+    const { data: salesReps } = await supabase
+      .from('sales_reps')
+      .select('*')
+      .order('name')
 
-      if (deals) {
-        const aggregated = aggregateDeals(deals)
-        setReps(aggregated)
-      }
-    } else {
-      setReps(data || [])
+    if (!salesReps || salesReps.length === 0) {
+      setReps([])
+      setLoading(false)
+      return
     }
+
+    // Then fetch deals with optional period filter
+    let query = supabase.from('deals').select('rep_id, value, points_earned, period, month')
+
+    if (period === 'quarter') {
+      query = query.eq('period', getCurrentQuarter())
+    } else if (period === 'month') {
+      query = query.eq('month', getCurrentMonth())
+    }
+
+    const { data: deals } = await query
+
+    // Aggregate deals per rep
+    const dealMap = {}
+    if (deals) {
+      deals.forEach(d => {
+        if (!dealMap[d.rep_id]) dealMap[d.rep_id] = { deals_count: 0, total_revenue: 0, points: 0 }
+        dealMap[d.rep_id].deals_count += 1
+        dealMap[d.rep_id].total_revenue += d.value || 0
+        dealMap[d.rep_id].points += d.points_earned || 0
+      })
+    }
+
+    // Merge reps with their stats, sort by points
+    const merged = salesReps.map(rep => ({
+      id: rep.id,
+      name: rep.name,
+      avatar_url: rep.avatar_url,
+      job_title: rep.job_title,
+      deals_count: dealMap[rep.id]?.deals_count || 0,
+      total_revenue: dealMap[rep.id]?.total_revenue || 0,
+      points: dealMap[rep.id]?.points || 0,
+      streak: 0,
+      is_new_this_quarter: false,
+    })).sort((a, b) => b.points - a.points)
+
+    setReps(merged)
     setLoading(false)
   }
 
