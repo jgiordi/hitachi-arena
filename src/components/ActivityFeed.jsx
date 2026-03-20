@@ -27,7 +27,7 @@ export default function ActivityFeed() {
   async function fetchFeed() {
     const { data } = await supabase
       .from('deals')
-      .select('*, reps(name, avatar_url)')
+      .select('*, sales_reps(name)')
       .order('closed_at', { ascending: false })
       .limit(20)
     if (data) setDeals(data)
@@ -54,7 +54,7 @@ export default function ActivityFeed() {
           <div key={d.id} style={styles.item}>
             <div style={{ ...styles.dot, background: PKG_COLORS[d.package_id] || '#888' }} />
             <div style={styles.text}>
-              <strong style={styles.strong}>{d.reps?.name || 'Someone'}</strong>
+              <strong style={styles.strong}>{d.sales_reps?.name || 'Someone'}</strong>
               {' '}closed a{' '}
               <strong style={styles.strong}>{d.package_name}</strong>
               {d.client_name ? ` with ${d.client_name}` : ''}

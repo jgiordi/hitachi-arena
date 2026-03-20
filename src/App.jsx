@@ -5,6 +5,7 @@ import Leaderboard from './components/Leaderboard'
 import PackagesPage from './components/PackagesPage'
 import ActivityFeed from './components/ActivityFeed'
 import LogDealModal from './components/LogDealModal'
+import AdminPanel from './components/AdminPanel'
 
 function StatsBar({ currentUser }) {
   const [stats, setStats] = useState({ total_deals: 0, total_revenue: 0, days_left: 0, top_name: '' })
@@ -173,7 +174,7 @@ export default function App() {
         <StatsBar currentUser={currentUser} />
 
         <div style={styles.tabs}>
-          {['leaderboard', 'packages'].map(t => (
+          {['leaderboard', 'packages', 'admin'].map(t => (
             <button
               key={t}
               style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}
@@ -191,6 +192,7 @@ export default function App() {
           </>
         )}
         {tab === 'packages' && <PackagesPage />}
+        {tab === 'admin' && <AdminPanel />}
       </main>
 
       {showLog && <LogDealModal onClose={() => setShowLog(false)} currentUser={currentUser} />}

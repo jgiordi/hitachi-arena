@@ -81,7 +81,7 @@ export default function Leaderboard({ currentUser }) {
       // fallback: fetch raw deals and aggregate client-side
       const { data: deals } = await supabase
         .from('deals')
-        .select('*, reps(*)')
+        .select('*, sales_reps(*)')
         .eq('period', period === 'quarter' ? getCurrentQuarter() : getCurrentMonth())
 
       if (deals) {

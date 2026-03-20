@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const PACKAGES = [
@@ -14,16 +14,24 @@ export { PACKAGES }
 
 export default function LogDealModal({ onClose, currentUser }) {
   const [packageId, setPackageId] = useState('')
+  const [repId, setRepId] = useState('')
   const [client, setClient] = useState('')
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
+  const [reps, setReps] = useState([])
+
+  useEffect(() => {
+    supabase.from('sales_reps').select('*').order('name').then(({ data }) => {
+      if (data) setReps(data)
+    })
+  }, [])
 
   const selectedPkg = PACKAGES.find(p => p.id === packageId)
 
   async function handleSubmit() {
-    if (!packageId || !client || !value) {
+    if (!packageId || !repId || !client || !value) {
       setError('Please fill in all fields.')
       return
     }
@@ -35,7 +43,8 @@ export default function LogDealModal({ onClose, currentUser }) {
     const month = now.toISOString().slice(0, 7)
 
     const { error: err } = await supabase.from('deals').insert({
-      rep_id: currentUser.id,
+      rep_id: repId,
+      logged_by: currentUser?.id || null,
       package_id: packageId,
       package_name: selectedPkg.name,
       client_name: client,
@@ -71,6 +80,15 @@ export default function LogDealModal({ onClose, currentUser }) {
           </div>
         ) : (
           <>
+            <div style={styles.field}>
+              <label style={styles.label}>Sales rep</label>
+              <select style={styles.input} value={repId} onChange={e => setRepId(e.target.value)}>
+                <option value="">Select a rep...</option>
+                {reps.map(rep => (<option key={rep.id} value={rep.id}>{rep.name}</option>))}
+              </select>
+              {reps.length === 0 && <div style={{fontSize:"12px",color:"var(--text3)",marginTop:"6px"}}>No reps yet — add them in Admin panel.</div>}
+            </div>
+
             <div style={styles.field}>
               <label style={styles.label}>Package</label>
               <div style={styles.packageGrid}>
