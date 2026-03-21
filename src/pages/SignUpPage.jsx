@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const ALLOWED_DOMAIN = 'hitachisolutions.com'
+const ALLOWED_DOMAINS = ['hitachisolutions.com', 'hsdyn.com']
 
 export default function SignUpPage({ onSwitchToLogin }) {
   const [name, setName] = useState('')
@@ -15,8 +15,8 @@ export default function SignUpPage({ onSwitchToLogin }) {
     e.preventDefault()
     setError(null)
 
-    if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
-      setError(`Only @${ALLOWED_DOMAIN} email addresses are permitted.`)
+    if (!ALLOWED_DOMAINS.some(domain => email.endsWith('@' + domain))) {
+      setError(`Only @${ALLOWED_DOMAINS.join(' or @')} email addresses are permitted.`)
       return
     }
     if (password.length < 8) {
@@ -104,7 +104,7 @@ export default function SignUpPage({ onSwitchToLogin }) {
             <input
               style={styles.input}
               type="email"
-              placeholder="you@hitachisolutions.com"
+              placeholder="you@hitachisolutions.com or you@hsdyn.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
