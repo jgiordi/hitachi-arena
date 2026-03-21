@@ -26,8 +26,13 @@ export default function SignUpPage({ onSwitchToLogin }) {
 
     setLoading(true)
 
+    // Flag prevents handleSession from treating the brief window between
+    // signUp and reps insert as a "missing account" error
+    sessionStorage.setItem('salesarena_signing_up', '1')
+
     const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
     if (signUpError) {
+      sessionStorage.removeItem('salesarena_signing_up')
       setError(signUpError.message)
       setLoading(false)
       return
@@ -40,13 +45,15 @@ export default function SignUpPage({ onSwitchToLogin }) {
       approved: false,
     })
 
+    sessionStorage.removeItem('salesarena_signing_up')
+
     if (repError) {
       setError(repError.message)
       setLoading(false)
       return
     }
 
-    // Sign out immediately — user must wait for approval before accessing the app
+    // Sign out — user must wait for approval before accessing the app
     await supabase.auth.signOut()
     setDone(true)
     setLoading(false)

@@ -107,7 +107,11 @@ export default function App() {
       .single()
 
     if (!data) {
-      // No rep record found — account was rejected or something went wrong
+      if (sessionStorage.getItem('salesarena_signing_up')) {
+        // Race condition: signup is mid-flight, reps insert hasn't completed yet — ignore
+        return
+      }
+      // No rep record found — account was rejected or removed
       await supabase.auth.signOut()
       setAccountError(true)
       return
