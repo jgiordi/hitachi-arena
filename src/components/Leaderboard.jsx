@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getCurrentPeriod, getCurrentMonth } from '../lib/fiscalYear'
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' }
 const MEDAL_COLOR = { 1: '#c8961e', 2: '#6b7280', 3: '#92400e' }
@@ -90,7 +91,7 @@ export default function Leaderboard({ currentUser }) {
     let query = supabase.from('deals').select('rep_id, value, points_earned, period, month')
 
     if (period === 'quarter') {
-      query = query.eq('period', getCurrentQuarter())
+      query = query.eq('period', getCurrentPeriod())
     } else if (period === 'month') {
       query = query.eq('month', getCurrentMonth())
     }
@@ -125,14 +126,7 @@ export default function Leaderboard({ currentUser }) {
     setLoading(false)
   }
 
-  function getCurrentQuarter() {
-    const m = new Date().getMonth()
-    return `Q${Math.floor(m / 3) + 1}-${new Date().getFullYear()}`
-  }
-
-  function getCurrentMonth() {
-    return new Date().toISOString().slice(0, 7)
-  }
+  function getCurrentMonth() { return new Date().toISOString().slice(0, 7) }
 
   function aggregateDeals(deals) {
     const map = {}

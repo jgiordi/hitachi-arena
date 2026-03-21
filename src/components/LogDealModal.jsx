@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getCurrentPeriod, getCurrentMonth } from '../lib/fiscalYear'
 
 export default function LogDealModal({ onClose, currentUser }) {
   const [packageId, setPackageId] = useState('')
@@ -32,8 +33,8 @@ export default function LogDealModal({ onClose, currentUser }) {
     setError(null)
 
     const now = new Date()
-    const quarter = `Q${Math.floor(now.getMonth() / 3) + 1}-${now.getFullYear()}`
-    const month = now.toISOString().slice(0, 7)
+    const period = getCurrentPeriod(now)
+    const month = getCurrentMonth(now)
 
     const { error: err } = await supabase.from('deals').insert({
       rep_id: repId,
@@ -43,7 +44,7 @@ export default function LogDealModal({ onClose, currentUser }) {
       client_name: client,
       value: parseFloat(value),
       points_earned: selectedPkg.points,
-      period: quarter,
+      period,
       month,
       closed_at: now.toISOString(),
     })

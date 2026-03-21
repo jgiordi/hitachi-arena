@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import { getCurrentPeriod, getCurrentPeriodLabel, getDaysLeftInQuarter } from './lib/fiscalYear'
 import LoginPage from './pages/LoginPage'
 import SignUpPage from './pages/SignUpPage'
 import Leaderboard from './components/Leaderboard'
@@ -16,16 +17,13 @@ function StatsBar({ currentUser }) {
   useEffect(() => {
     async function fetchStats() {
       const now = new Date()
-      const quarter = `Q${Math.floor(now.getMonth() / 3) + 1}-${now.getFullYear()}`
-
-      const quarterEndMonth = Math.floor(now.getMonth() / 3) * 3 + 2
-      const quarterEnd = new Date(now.getFullYear(), quarterEndMonth + 1, 0)
-      const daysLeft = Math.max(0, Math.ceil((quarterEnd - now) / (1000 * 60 * 60 * 24)))
+      const period = getCurrentPeriod(now)
+      const daysLeft = getDaysLeftInQuarter(now)
 
       const { data: deals } = await supabase
         .from('deals')
         .select('value, points_earned, rep_id, sales_reps(name)')
-        .eq('period', quarter)
+        .eq('period', period)
 
       if (deals && deals.length > 0) {
         const totalDeals = deals.length
@@ -180,7 +178,7 @@ export default function App() {
             </svg>
           </div>
           <span style={styles.appName}>Sales Arena</span>
-          <span style={styles.quarter}>Q{Math.floor(new Date().getMonth() / 3) + 1} {new Date().getFullYear()}</span>
+          <span style={styles.quarter}>{getCurrentPeriodLabel()}</span>
         </div>
         <div style={styles.headerRight}>
           <button style={styles.logBtn} onClick={() => setShowLog(true)}>+ Log deal</button>
