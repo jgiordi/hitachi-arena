@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { PACKAGES } from './LogDealModal'
 
 const BADGES = [
   { name: 'Cloud Ace', desc: 'Close 5 Cloud Assessments', icon: '☁️', color: '#185FA5', bg: '#E6F1FB' },
@@ -13,8 +12,12 @@ const BADGES = [
 
 export default function PackagesPage() {
   const [dealCounts, setDealCounts] = useState({})
+  const [packages, setPackages] = useState([])
 
   useEffect(() => {
+    supabase.from('packages').select('*').order('created_at').then(({ data }) => {
+      if (data) setPackages(data)
+    })
     async function fetchCounts() {
       const { data } = await supabase
         .from('deals')

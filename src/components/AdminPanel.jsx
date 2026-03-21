@@ -12,6 +12,18 @@ export default function AdminPanel({ currentUser }) {
   const [approving, setApproving] = useState(null)
   const [rejecting, setRejecting] = useState(null)
 
+  // Packages
+  const [packages, setPackages] = useState([])
+  const [pkgUsage, setPkgUsage] = useState({})
+  const [pkgName, setPkgName] = useState('')
+  const [pkgPoints, setPkgPoints] = useState('')
+  const [pkgColor, setPkgColor] = useState('#185FA5')
+  const [pkgLoading, setPkgLoading] = useState(false)
+  const [pkgError, setPkgError] = useState(null)
+  const [editingPkg, setEditingPkg] = useState(null)
+  const [editFields, setEditFields] = useState({})
+  const [deletingPkg, setDeletingPkg] = useState(null)
+
   async function fetchPendingUsers() {
     const { data } = await supabase
       .from('reps')
@@ -26,10 +38,66 @@ export default function AdminPanel({ currentUser }) {
     if (data) setReps(data)
   }
 
+  async function fetchPackages() {
+    const [{ data: pkgs }, { data: deals }] = await Promise.all([
+      supabase.from('packages').select('*').order('created_at'),
+      supabase.from('deals').select('package_id'),
+    ])
+    if (pkgs) setPackages(pkgs)
+    if (deals) {
+      const usage = {}
+      deals.forEach(d => { usage[d.package_id] = (usage[d.package_id] || 0) + 1 })
+      setPkgUsage(usage)
+    }
+  }
+
   useEffect(() => {
     fetchPendingUsers()
     fetchReps()
+    fetchPackages()
   }, [])
+
+  function slugify(str) {
+    return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  }
+
+  async function addPackage() {
+    if (!pkgName.trim()) { setPkgError('Name is required.'); return }
+    const pts = parseInt(pkgPoints)
+    if (!pkgPoints || isNaN(pts) || pts <= 0) { setPkgError('Points must be a positive number.'); return }
+    setPkgLoading(true)
+    setPkgError(null)
+    const { error: err } = await supabase.from('packages').insert({
+      id: slugify(pkgName.trim()),
+      name: pkgName.trim(),
+      points: pts,
+      color: pkgColor,
+    })
+    if (err) { setPkgError(err.message) }
+    else { setPkgName(''); setPkgPoints(''); setPkgColor('#185FA5'); fetchPackages() }
+    setPkgLoading(false)
+  }
+
+  async function savePackage(pkg) {
+    const pts = parseInt(editFields.points)
+    if (!editFields.name?.trim()) { setPkgError('Name is required.'); return }
+    if (!editFields.points || isNaN(pts) || pts <= 0) { setPkgError('Points must be a positive number.'); return }
+    setPkgError(null)
+    const { error: err } = await supabase.from('packages').update({
+      name: editFields.name.trim(),
+      points: pts,
+      color: editFields.color,
+    }).eq('id', pkg.id)
+    if (err) { setPkgError(err.message) }
+    else { setEditingPkg(null); fetchPackages() }
+  }
+
+  async function deletePackage(pkg) {
+    setDeletingPkg(pkg.id)
+    await supabase.from('packages').delete().eq('id', pkg.id)
+    fetchPackages()
+    setDeletingPkg(null)
+  }
 
   async function approveUser(user) {
     setApproving(user.id)
@@ -162,6 +230,7 @@ export default function AdminPanel({ currentUser }) {
           <div style={styles.empty}>No reps added yet. Add your first team member above.</div>
         ) : (
           reps.map((rep, i) => {
+
             const initials = rep.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
             const colors = [
               ['#E6F1FB', '#185FA5'], ['#E1F5EE', '#0F6E56'],
@@ -187,6 +256,121 @@ export default function AdminPanel({ currentUser }) {
                 >
                   ✕
                 </button>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Manage packages */}
+      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage packages</h2>
+      <p style={styles.sub}>Create or update packages that appear in the deal logger. Packages used in deals cannot be deleted.</p>
+
+      <div style={styles.form}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 44px auto', gap: '12px', alignItems: 'end' }}>
+          <div style={styles.formField}>
+            <label style={styles.label}>Package name</label>
+            <input
+              style={styles.input}
+              placeholder="e.g. Azure Migration"
+              value={pkgName}
+              onChange={e => setPkgName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addPackage()}
+            />
+          </div>
+          <div style={styles.formField}>
+            <label style={styles.label}>Points</label>
+            <input
+              style={styles.input}
+              type="number"
+              min="1"
+              placeholder="e.g. 300"
+              value={pkgPoints}
+              onChange={e => setPkgPoints(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addPackage()}
+            />
+          </div>
+          <div style={styles.formField}>
+            <label style={styles.label}>Colour</label>
+            <input
+              type="color"
+              style={{ ...styles.input, padding: '3px 4px', height: '38px', cursor: 'pointer' }}
+              value={pkgColor}
+              onChange={e => setPkgColor(e.target.value)}
+            />
+          </div>
+          <div style={styles.formAction}>
+            <label style={{ ...styles.label, visibility: 'hidden' }}>Add</label>
+            <button
+              style={{ ...styles.addBtn, opacity: pkgLoading ? 0.7 : 1 }}
+              onClick={addPackage}
+              disabled={pkgLoading}
+            >
+              {pkgLoading ? 'Adding...' : '+ Add package'}
+            </button>
+          </div>
+        </div>
+        {pkgError && <div style={styles.error}>{pkgError}</div>}
+      </div>
+
+      <div style={styles.list}>
+        {packages.length === 0 ? (
+          <div style={styles.empty}>No packages yet.</div>
+        ) : (
+          packages.map(pkg => {
+            const inUse = (pkgUsage[pkg.id] || 0) > 0
+            const isEditing = editingPkg === pkg.id
+            return (
+              <div key={pkg.id} style={styles.repRow}>
+                {isEditing ? (
+                  <>
+                    <input
+                      style={{ ...styles.input, flex: 1 }}
+                      value={editFields.name}
+                      onChange={e => setEditFields(f => ({ ...f, name: e.target.value }))}
+                    />
+                    <input
+                      style={{ ...styles.input, width: '90px' }}
+                      type="number"
+                      min="1"
+                      value={editFields.points}
+                      onChange={e => setEditFields(f => ({ ...f, points: e.target.value }))}
+                    />
+                    <input
+                      type="color"
+                      style={{ ...styles.input, padding: '3px 4px', width: '48px', height: '36px', cursor: 'pointer', flexShrink: 0 }}
+                      value={editFields.color}
+                      onChange={e => setEditFields(f => ({ ...f, color: e.target.value }))}
+                    />
+                    <button style={styles.approveBtn} onClick={() => savePackage(pkg)}>Save</button>
+                    <button style={styles.rejectBtn} onClick={() => { setEditingPkg(null); setPkgError(null) }}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ ...styles.dot, background: pkg.color }} />
+                    <div style={styles.repInfo}>
+                      <div style={styles.repName}>{pkg.name}</div>
+                      <div style={styles.repTitle}>
+                        {pkg.points} pts per close
+                        {inUse ? ` · ${pkgUsage[pkg.id]} deal${pkgUsage[pkg.id] !== 1 ? 's' : ''}` : ''}
+                      </div>
+                    </div>
+                    <button
+                      style={{ ...styles.rejectBtn, marginRight: '4px' }}
+                      onClick={() => { setEditingPkg(pkg.id); setEditFields({ name: pkg.name, points: pkg.points, color: pkg.color }); setPkgError(null) }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      style={{ ...styles.deleteBtn, opacity: (inUse || deletingPkg === pkg.id) ? 0.35 : 1, cursor: inUse ? 'not-allowed' : 'pointer' }}
+                      onClick={() => !inUse && deletePackage(pkg)}
+                      disabled={inUse || deletingPkg === pkg.id}
+                      title={inUse ? 'Cannot delete — package is used in existing deals' : 'Delete package'}
+                    >
+                      ✕
+                    </button>
+                  </>
+                )}
               </div>
             )
           })
@@ -308,5 +492,11 @@ const styles = {
     cursor: 'pointer',
     padding: '4px 8px',
     borderRadius: '4px',
+  },
+  dot: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    flexShrink: 0,
   },
 }

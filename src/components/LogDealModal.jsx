@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-const PACKAGES = [
-  { id: 'cloud-assessment', name: 'Cloud Assessment', points: 320, color: '#185FA5' },
-  { id: 'security-assessment', name: 'Security Assessment', points: 200, color: '#993556' },
-  { id: 'data-ai-accelerator', name: 'Data & AI Accelerator', points: 400, color: '#854F0B' },
-  { id: 'support-managed', name: 'Support & Managed', points: 150, color: '#3B6D11' },
-]
-
-export { PACKAGES }
-
 export default function LogDealModal({ onClose, currentUser }) {
   const [packageId, setPackageId] = useState('')
   const [repId, setRepId] = useState('')
@@ -19,14 +10,18 @@ export default function LogDealModal({ onClose, currentUser }) {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
   const [reps, setReps] = useState([])
+  const [packages, setPackages] = useState([])
 
   useEffect(() => {
     supabase.from('sales_reps').select('*').order('name').then(({ data }) => {
       if (data) setReps(data)
     })
+    supabase.from('packages').select('*').order('created_at').then(({ data }) => {
+      if (data) setPackages(data)
+    })
   }, [])
 
-  const selectedPkg = PACKAGES.find(p => p.id === packageId)
+  const selectedPkg = packages.find(p => p.id === packageId)
 
   async function handleSubmit() {
     if (!packageId || !repId || !client || !value) {
@@ -90,7 +85,7 @@ export default function LogDealModal({ onClose, currentUser }) {
             <div style={styles.field}>
               <label style={styles.label}>Package</label>
               <div style={styles.packageGrid}>
-                {PACKAGES.map(pkg => (
+                {packages.map(pkg => (
                   <button
                     key={pkg.id}
                     style={{
