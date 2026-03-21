@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { getCurrentPeriod, getCurrentPeriodLabel, getDaysLeftInQuarter } from './lib/fiscalYear'
+import { getCurrentPeriodLabel, getCurrentFYPrefix, getDaysLeftInFY } from './lib/fiscalYear'
 import LoginPage from './pages/LoginPage'
 import SignUpPage from './pages/SignUpPage'
 import Leaderboard from './components/Leaderboard'
@@ -17,13 +17,13 @@ function StatsBar({ currentUser }) {
   useEffect(() => {
     async function fetchStats() {
       const now = new Date()
-      const period = getCurrentPeriod(now)
-      const daysLeft = getDaysLeftInQuarter(now)
+      const fyPrefix = getCurrentFYPrefix(now)
+      const daysLeft = getDaysLeftInFY(now)
 
       const { data: deals } = await supabase
         .from('deals')
         .select('value, points_earned, rep_id, sales_reps(name)')
-        .eq('period', period)
+        .like('period', fyPrefix + '%')
 
       if (deals && deals.length > 0) {
         const totalDeals = deals.length
@@ -52,10 +52,10 @@ function StatsBar({ currentUser }) {
 
   return (
     <div style={styles.statsGrid}>
-      <div style={styles.stat}><div style={styles.statLabel}>Deals closed</div><div style={styles.statVal}>{stats.total_deals}</div><div style={styles.statSub}>this quarter</div></div>
+      <div style={styles.stat}><div style={styles.statLabel}>Deals closed</div><div style={styles.statVal}>{stats.total_deals}</div><div style={styles.statSub}>this FY</div></div>
       <div style={styles.stat}><div style={styles.statLabel}>Top earner</div><div style={styles.statVal}>{stats.top_name || '—'}</div><div style={styles.statSub}>leading the board</div></div>
-      <div style={styles.stat}><div style={styles.statLabel}>Revenue unlocked</div><div style={styles.statVal}>{revenueStr}</div><div style={styles.statSub}>quarter total</div></div>
-      <div style={styles.stat}><div style={styles.statLabel}>Days remaining</div><div style={styles.statVal}>{stats.days_left}</div><div style={styles.statSub}>in this quarter</div></div>
+      <div style={styles.stat}><div style={styles.statLabel}>Revenue unlocked</div><div style={styles.statVal}>{revenueStr}</div><div style={styles.statSub}>FY total</div></div>
+      <div style={styles.stat}><div style={styles.statLabel}>Days remaining</div><div style={styles.statVal}>{stats.days_left}</div><div style={styles.statSub}>in this FY</div></div>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { getCurrentPeriod, getCurrentMonth } from '../lib/fiscalYear'
+import { getCurrentFYPrefix, getCurrentMonth } from '../lib/fiscalYear'
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' }
 const MEDAL_COLOR = { 1: '#c8961e', 2: '#6b7280', 3: '#92400e' }
@@ -70,7 +70,7 @@ function getBadges(rep) {
 export default function Leaderboard({ currentUser }) {
   const [reps, setReps] = useState([])
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState('quarter')
+  const [period, setPeriod] = useState('fy')
 
   async function fetchLeaderboard() {
     setLoading(true)
@@ -90,8 +90,8 @@ export default function Leaderboard({ currentUser }) {
     // Then fetch deals with optional period filter
     let query = supabase.from('deals').select('rep_id, value, points_earned, period, month')
 
-    if (period === 'quarter') {
-      query = query.eq('period', getCurrentPeriod())
+    if (period === 'fy') {
+      query = query.like('period', getCurrentFYPrefix() + '%')
     } else if (period === 'month') {
       query = query.eq('month', getCurrentMonth())
     }
@@ -173,13 +173,13 @@ export default function Leaderboard({ currentUser }) {
       <div style={styles.toolbar}>
         <h2 style={styles.sectionTitle}>Leaderboard</h2>
         <div style={styles.toggle}>
-          {['quarter', 'month', 'all'].map(p => (
+          {['fy', 'month', 'all'].map(p => (
             <button
               key={p}
               style={{ ...styles.toggleBtn, ...(period === p ? styles.toggleActive : {}) }}
               onClick={() => setPeriod(p)}
             >
-              {p === 'quarter' ? 'This quarter' : p === 'month' ? 'This month' : 'All time'}
+              {p === 'fy' ? 'This FY' : p === 'month' ? 'This month' : 'All time'}
             </button>
           ))}
         </div>
