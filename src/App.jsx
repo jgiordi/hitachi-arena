@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
-import { supabase, ALLOWED_DOMAIN } from './lib/supabase'
+import { supabase } from './lib/supabase'
 import LoginPage from './pages/LoginPage'
+import SignUpPage from './pages/SignUpPage'
 import Leaderboard from './components/Leaderboard'
 import PackagesPage from './components/PackagesPage'
 import ActivityFeed from './components/ActivityFeed'
 import LogDealModal from './components/LogDealModal'
 import AdminPanel from './components/AdminPanel'
+
+const ALLOWED_DOMAIN = 'hitachisolutions.com'
 
 function StatsBar({ currentUser }) {
   const [stats, setStats] = useState({ total_deals: 0, total_revenue: 0, days_left: 0, top_name: '' })
@@ -15,7 +18,6 @@ function StatsBar({ currentUser }) {
       const now = new Date()
       const quarter = `Q${Math.floor(now.getMonth() / 3) + 1}-${now.getFullYear()}`
 
-      // Quarter end date
       const quarterEndMonth = Math.floor(now.getMonth() / 3) * 3 + 2
       const quarterEnd = new Date(now.getFullYear(), quarterEndMonth + 1, 0)
       const daysLeft = Math.max(0, Math.ceil((quarterEnd - now) / (1000 * 60 * 60 * 24)))
@@ -29,7 +31,6 @@ function StatsBar({ currentUser }) {
         const totalDeals = deals.length
         const totalRevenue = deals.reduce((sum, d) => sum + (d.value || 0), 0)
 
-        // find top rep by points
         const repPoints = {}
         deals.forEach(d => {
           const name = d.sales_reps?.name || 'Unknown'
@@ -64,10 +65,11 @@ function StatsBar({ currentUser }) {
 export default function App() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [wrongDomain, setWrongDomain] = useState(false)
+  const [authView, setAuthView] = useState('login') // 'login' | 'signup'
   const [tab, setTab] = useState('leaderboard')
   const [showLog, setShowLog] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [accountError, setAccountError] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -86,32 +88,32 @@ export default function App() {
     if (!session) {
       setSession(null)
       setCurrentUser(null)
+      setAccountError(false)
       return
     }
 
     const email = session.user.email
     if (ALLOWED_DOMAIN && !email.endsWith('@' + ALLOWED_DOMAIN)) {
       await supabase.auth.signOut()
-      setWrongDomain(true)
       return
     }
 
     setSession(session)
-    setWrongDomain(false)
 
-    // Upsert rep profile
     const { data } = await supabase
       .from('reps')
-      .upsert({
-        id: session.user.id,
-        name: session.user.user_metadata.full_name || email.split('@')[0],
-        email,
-        avatar_url: session.user.user_metadata.avatar_url || null,
-      }, { onConflict: 'id' })
-      .select()
+      .select('*')
+      .eq('id', session.user.id)
       .single()
 
-    setCurrentUser(data || { id: session.user.id, name: session.user.user_metadata.full_name, email })
+    if (!data) {
+      // No rep record found — account was rejected or something went wrong
+      await supabase.auth.signOut()
+      setAccountError(true)
+      return
+    }
+
+    setCurrentUser(data)
   }
 
   async function handleSignOut() {
@@ -126,22 +128,45 @@ export default function App() {
     )
   }
 
-  if (wrongDomain) {
+  if (accountError) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '2rem', maxWidth: '360px', textAlign: 'center' }}>
           <div style={{ fontSize: '32px', marginBottom: '12px' }}>🚫</div>
-          <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Access restricted</div>
+          <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Account not found</div>
           <div style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '1.5rem' }}>
-            Only <strong>@{ALLOWED_DOMAIN}</strong> accounts can access Sales Arena.
+            Your account request may have been removed. Contact your admin for help.
           </div>
-          <button style={styles.signOutBtn} onClick={() => { setWrongDomain(false) }}>Try again</button>
+          <button style={styles.signOutBtn} onClick={() => setAccountError(false)}>Back to sign in</button>
         </div>
       </div>
     )
   }
 
-  if (!session) return <LoginPage />
+  if (!session) {
+    if (authView === 'signup') {
+      return <SignUpPage onSwitchToLogin={() => setAuthView('login')} />
+    }
+    return <LoginPage onSwitchToSignUp={() => setAuthView('signup')} />
+  }
+
+  // Logged in but pending approval
+  if (!currentUser?.approved) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '2rem', maxWidth: '360px', textAlign: 'center' }}>
+          <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
+          <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Awaiting approval</div>
+          <div style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '1.5rem' }}>
+            Your account is pending approval from an admin. Check back soon.
+          </div>
+          <button style={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
+        </div>
+      </div>
+    )
+  }
+
+  const tabs = ['leaderboard', 'packages', ...(currentUser?.is_superuser ? ['admin'] : [])]
 
   return (
     <div style={styles.app}>
@@ -160,10 +185,7 @@ export default function App() {
         <div style={styles.headerRight}>
           <button style={styles.logBtn} onClick={() => setShowLog(true)}>+ Log deal</button>
           <div style={styles.userInfo}>
-            {session.user.user_metadata.avatar_url
-              ? <img src={session.user.user_metadata.avatar_url} alt="" style={styles.userAvatar} />
-              : <div style={styles.userInitials}>{(session.user.user_metadata.full_name || session.user.email)[0].toUpperCase()}</div>
-            }
+            <div style={styles.userInitials}>{(currentUser?.name || session.user.email)[0].toUpperCase()}</div>
             <button style={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
           </div>
         </div>
@@ -174,7 +196,7 @@ export default function App() {
         <StatsBar currentUser={currentUser} />
 
         <div style={styles.tabs}>
-          {['leaderboard', 'packages', 'admin'].map(t => (
+          {tabs.map(t => (
             <button
               key={t}
               style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}
@@ -192,7 +214,7 @@ export default function App() {
           </>
         )}
         {tab === 'packages' && <PackagesPage />}
-        {tab === 'admin' && <AdminPanel />}
+        {tab === 'admin' && currentUser?.is_superuser && <AdminPanel currentUser={currentUser} />}
       </main>
 
       {showLog && <LogDealModal onClose={() => setShowLog(false)} currentUser={currentUser} />}
@@ -236,7 +258,6 @@ const styles = {
     cursor: 'pointer',
   },
   userInfo: { display: 'flex', alignItems: 'center', gap: '8px' },
-  userAvatar: { width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' },
   userInitials: {
     width: '28px',
     height: '28px',

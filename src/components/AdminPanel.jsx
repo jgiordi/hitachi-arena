@@ -1,20 +1,49 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-export default function AdminPanel() {
+export default function AdminPanel({ currentUser }) {
+  const [pendingUsers, setPendingUsers] = useState([])
   const [reps, setReps] = useState([])
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [approving, setApproving] = useState(null)
+  const [rejecting, setRejecting] = useState(null)
+
+  async function fetchPendingUsers() {
+    const { data } = await supabase
+      .from('reps')
+      .select('*')
+      .eq('approved', false)
+      .order('created_at')
+    if (data) setPendingUsers(data)
+  }
 
   async function fetchReps() {
     const { data } = await supabase.from('sales_reps').select('*').order('name')
     if (data) setReps(data)
   }
 
-  useEffect(() => { fetchReps() }, [])
+  useEffect(() => {
+    fetchPendingUsers()
+    fetchReps()
+  }, [])
+
+  async function approveUser(user) {
+    setApproving(user.id)
+    await supabase.from('reps').update({ approved: true }).eq('id', user.id)
+    fetchPendingUsers()
+    setApproving(null)
+  }
+
+  async function rejectUser(user) {
+    setRejecting(user.id)
+    await supabase.from('reps').delete().eq('id', user.id)
+    fetchPendingUsers()
+    setRejecting(null)
+  }
 
   async function addRep() {
     if (!name.trim()) { setError('Name is required.'); return }
@@ -38,10 +67,60 @@ export default function AdminPanel() {
 
   return (
     <div>
+      {/* Pending approvals */}
+      <h2 style={styles.sectionTitle}>Pending approvals</h2>
+      <p style={styles.sub}>Users who have requested access and are waiting for approval.</p>
+
+      <div style={{ ...styles.list, marginBottom: '2rem' }}>
+        {pendingUsers.length === 0 ? (
+          <div style={styles.empty}>No pending requests.</div>
+        ) : (
+          pendingUsers.map((user, i) => {
+            const initials = user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+            const colors = [
+              ['#E6F1FB', '#185FA5'], ['#E1F5EE', '#0F6E56'],
+              ['#FAEEDA', '#854F0B'], ['#EEEDFE', '#534AB7'],
+              ['#FBEAF0', '#993556'], ['#EAF3DE', '#3B6D11'],
+            ]
+            const [bg, fg] = colors[i % colors.length]
+            return (
+              <div key={user.id} style={styles.repRow}>
+                <div style={{ ...styles.avatar, background: bg, color: fg }}>{initials}</div>
+                <div style={styles.repInfo}>
+                  <div style={styles.repName}>{user.name}</div>
+                  <div style={styles.repTitle}>{user.email}</div>
+                </div>
+                <div style={styles.repMeta}>
+                  <span style={styles.addedDate}>
+                    Requested {new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    style={{ ...styles.approveBtn, opacity: approving === user.id ? 0.6 : 1 }}
+                    onClick={() => approveUser(user)}
+                    disabled={approving === user.id || rejecting === user.id}
+                  >
+                    {approving === user.id ? '...' : 'Approve'}
+                  </button>
+                  <button
+                    style={{ ...styles.rejectBtn, opacity: rejecting === user.id ? 0.6 : 1 }}
+                    onClick={() => rejectUser(user)}
+                    disabled={approving === user.id || rejecting === user.id}
+                  >
+                    {rejecting === user.id ? '...' : 'Reject'}
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Manage sales reps */}
       <h2 style={styles.sectionTitle}>Manage sales reps</h2>
       <p style={styles.sub}>Add your team members here. They'll appear in the "Log deal" rep selector and on the leaderboard.</p>
 
-      {/* Add rep form */}
       <div style={styles.form}>
         <div style={styles.formRow}>
           <div style={styles.formField}>
@@ -78,7 +157,6 @@ export default function AdminPanel() {
         {error && <div style={styles.error}>{error}</div>}
       </div>
 
-      {/* Reps list */}
       <div style={styles.list}>
         {reps.length === 0 ? (
           <div style={styles.empty}>No reps added yet. Add your first team member above.</div>
@@ -163,6 +241,25 @@ const styles = {
     color: 'white',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+  },
+  approveBtn: {
+    padding: '6px 14px',
+    background: '#166534',
+    color: 'white',
+    border: 'none',
+    borderRadius: 'var(--radius)',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+  },
+  rejectBtn: {
+    padding: '6px 14px',
+    background: 'none',
+    color: 'var(--text3)',
+    border: '1px solid var(--border-strong)',
+    borderRadius: 'var(--radius)',
+    fontSize: '13px',
+    cursor: 'pointer',
   },
   error: {
     marginTop: '10px',
