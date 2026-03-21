@@ -8,7 +8,7 @@ import ActivityFeed from './components/ActivityFeed'
 import LogDealModal from './components/LogDealModal'
 import AdminPanel from './components/AdminPanel'
 
-const ALLOWED_DOMAIN = 'hitachisolutions.com'
+const ALLOWED_DOMAINS = ['hitachisolutions.com', 'hsdyn.com']
 
 function StatsBar({ currentUser }) {
   const [stats, setStats] = useState({ total_deals: 0, total_revenue: 0, days_left: 0, top_name: '' })
@@ -93,7 +93,7 @@ export default function App() {
     }
 
     const email = session.user.email
-    if (ALLOWED_DOMAIN && !email.endsWith('@' + ALLOWED_DOMAIN)) {
+    if (!ALLOWED_DOMAINS.some(d => email.endsWith('@' + d))) {
       await supabase.auth.signOut()
       return
     }
