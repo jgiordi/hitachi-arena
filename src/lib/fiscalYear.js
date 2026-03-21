@@ -34,6 +34,16 @@ export function getCurrentFYPrefix(date = new Date()) {
   return `FY${getFYYear(date)}-`
 }
 
+/** Prefix for the previous FY, e.g. "FY24-". */
+export function getPrevFYPrefix(date = new Date()) {
+  return `FY${(getFYYear(date) - 1 + 100) % 100}-`
+}
+
+/** Two-digit year label for the previous FY, e.g. 24. */
+export function getPrevFYYear(date = new Date()) {
+  return (getFYYear(date) - 1 + 100) % 100
+}
+
 /** Current month string, e.g. "2026-03". */
 export function getCurrentMonth(date = new Date()) {
   return date.toISOString().slice(0, 7)

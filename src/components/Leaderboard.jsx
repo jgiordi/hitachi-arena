@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { getCurrentFYPrefix, getCurrentMonth } from '../lib/fiscalYear'
+import { getCurrentFYPrefix, getPrevFYPrefix, getPrevFYYear, getCurrentMonth } from '../lib/fiscalYear'
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' }
 const MEDAL_COLOR = { 1: '#c8961e', 2: '#6b7280', 3: '#92400e' }
@@ -92,6 +92,8 @@ export default function Leaderboard({ currentUser }) {
 
     if (period === 'fy') {
       query = query.like('period', getCurrentFYPrefix() + '%')
+    } else if (period === 'prev-fy') {
+      query = query.like('period', getPrevFYPrefix() + '%')
     } else if (period === 'month') {
       query = query.eq('month', getCurrentMonth())
     }
@@ -173,13 +175,13 @@ export default function Leaderboard({ currentUser }) {
       <div style={styles.toolbar}>
         <h2 style={styles.sectionTitle}>Leaderboard</h2>
         <div style={styles.toggle}>
-          {['fy', 'month', 'all'].map(p => (
+          {['fy', 'prev-fy', 'month', 'all'].map(p => (
             <button
               key={p}
               style={{ ...styles.toggleBtn, ...(period === p ? styles.toggleActive : {}) }}
               onClick={() => setPeriod(p)}
             >
-              {p === 'fy' ? 'This FY' : p === 'month' ? 'This month' : 'All time'}
+              {p === 'fy' ? 'This FY' : p === 'prev-fy' ? `FY${getPrevFYYear()}` : p === 'month' ? 'This month' : 'All time'}
             </button>
           ))}
         </div>
