@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 
 const PACKAGES = [
   { id: 'cloud-assessment', name: 'Cloud Assessment', points: 320, color: '#185FA5' },
-  { id: 'modern-workplace', name: 'Modern Workplace', points: 250, color: '#0F6E56' },
   { id: 'security-assessment', name: 'Security Assessment', points: 200, color: '#993556' },
   { id: 'data-ai-accelerator', name: 'Data & AI Accelerator', points: 400, color: '#854F0B' },
   { id: 'support-managed', name: 'Support & Managed', points: 150, color: '#3B6D11' },
