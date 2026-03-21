@@ -26,34 +26,21 @@ export default function SignUpPage({ onSwitchToLogin }) {
 
     setLoading(true)
 
-    // Flag prevents handleSession from treating the brief window between
-    // signUp and reps insert as a "missing account" error
-    sessionStorage.setItem('salesarena_signing_up', '1')
-
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: name.trim() || email.split('@')[0] },
+      },
+    })
     if (signUpError) {
-      sessionStorage.removeItem('salesarena_signing_up')
       setError(signUpError.message)
       setLoading(false)
       return
     }
 
-    const { error: repError } = await supabase.from('reps').insert({
-      id: data.user.id,
-      name: name.trim() || email.split('@')[0],
-      email,
-      approved: false,
-    })
-
-    sessionStorage.removeItem('salesarena_signing_up')
-
-    if (repError) {
-      setError(repError.message)
-      setLoading(false)
-      return
-    }
-
-    // Sign out — user must wait for approval before accessing the app
+    // The reps row is created automatically by the handle_new_user DB trigger.
+    // Sign out — user must wait for admin approval before accessing the app.
     await supabase.auth.signOut()
     setDone(true)
     setLoading(false)

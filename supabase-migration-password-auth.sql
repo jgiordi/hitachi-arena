@@ -101,6 +101,33 @@ create policy "approved users can insert deals"
   with check (is_approved());
 
 -- ============================================================
+-- Trigger: auto-create reps row on new auth user
+-- (runs as security definer, bypasses RLS)
+-- ============================================================
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.reps (id, name, email, approved)
+  values (
+    new.id,
+    coalesce(
+      nullif(trim(new.raw_user_meta_data->>'full_name'), ''),
+      split_part(new.email, '@', 1)
+    ),
+    new.email,
+    false
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- ============================================================
 -- After jgiordmaina@hitachisolutions.com signs up,
 -- run this to grant superuser + approved status:
 -- ============================================================
