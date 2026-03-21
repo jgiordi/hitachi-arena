@@ -1,6 +1,10 @@
 -- ============================================================
--- Migration: Package management
--- Run this in Supabase > SQL Editor
+-- [UPGRADE ONLY] Migration: Package management
+-- ============================================================
+-- NOT needed for a fresh install — use supabase-1-schema.sql instead.
+-- Only run this if you have an existing database that was set up
+-- WITHOUT the packages table and need to add it.
+-- Requires migration 3 (password auth) to already be applied.
 -- ============================================================
 
 create table if not exists public.packages (

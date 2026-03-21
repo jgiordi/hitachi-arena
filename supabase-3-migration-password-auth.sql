@@ -1,10 +1,18 @@
 -- ============================================================
--- Migration: Password-based auth with approval flow
--- Run this in Supabase > SQL Editor
+-- [UPGRADE ONLY] Migration: Password-based auth with approval flow
+-- ============================================================
+-- NOT needed for a fresh install — use supabase-1-schema.sql instead.
+-- Only run this if you have an existing database that was set up
+-- WITHOUT the approval flow and need to add it.
 --
--- IMPORTANT: Before running, disable email confirmation:
+-- IMPORTANT: Before running, disable email confirmation in
 -- Supabase > Authentication > Providers > Email >
 -- uncheck "Enable email confirmations"
+--
+-- AFTER running: grant yourself superuser + approved status:
+--   update public.reps
+--     set approved = true, is_superuser = true
+--     where email = 'your@email.com';
 -- ============================================================
 
 -- Add approval and superuser columns to reps

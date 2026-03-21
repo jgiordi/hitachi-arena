@@ -1,6 +1,9 @@
 -- ============================================================
--- Migration: Add sales_reps table
--- Run this in Supabase > SQL Editor
+-- [UPGRADE ONLY] Migration: Add sales_reps table
+-- ============================================================
+-- NOT needed for a fresh install — use supabase-1-schema.sql instead.
+-- Only run this if you have an existing database that was set up
+-- WITHOUT the sales_reps table and need to add it.
 -- ============================================================
 
 -- Sales reps table (managed by admin, separate from auth users)
