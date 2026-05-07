@@ -39,7 +39,7 @@ export default function PackagesPage() {
     <div>
       <h2 style={styles.sectionTitle}>Package point values</h2>
       <div style={styles.pkgGrid}>
-        {PACKAGES.map(pkg => {
+        {packages.map(pkg => {
           const count = dealCounts[pkg.id] || 0
           const barW = Math.round((count / maxCount) * 100)
           return (
