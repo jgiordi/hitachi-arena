@@ -4,6 +4,7 @@ import { getCurrentFYPrefix, getPrevFYPrefix, getPrevFYYear, getCurrentMonth } f
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' }
 const MEDAL_COLOR = { 1: '#c8961e', 2: '#6b7280', 3: '#92400e' }
+const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
 
 function Avatar({ name, avatarUrl, size = 36 }) {
   const initials = name
@@ -117,6 +118,7 @@ export default function Leaderboard({ currentUser }) {
       name: rep.name,
       avatar_url: rep.avatar_url,
       job_title: rep.job_title,
+      country: rep.country,
       deals_count: dealMap[rep.id]?.deals_count || 0,
       total_revenue: dealMap[rep.id]?.total_revenue || 0,
       points: dealMap[rep.id]?.points || 0,
@@ -225,6 +227,11 @@ export default function Leaderboard({ currentUser }) {
                     <div style={styles.name}>
                       {rep.name}
                       {isMe && <span style={styles.youBadge}>you</span>}
+                      {rep.country && COUNTRY_FLAG[rep.country] && (
+                        <span title={rep.country} style={{ fontSize: '14px', lineHeight: 1 }}>
+                          {COUNTRY_FLAG[rep.country]}
+                        </span>
+                      )}
                     </div>
                     {badges.length > 0 && (
                       <div style={styles.badges}>

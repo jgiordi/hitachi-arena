@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+const COUNTRIES = [
+  { value: 'UK',      label: '🇬🇧 UK' },
+  { value: 'France',  label: '🇫🇷 France' },
+  { value: 'Germany', label: '🇩🇪 Germany' },
+]
+
+const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
+
 export default function AdminPanel({ currentUser }) {
   const [pendingUsers, setPendingUsers] = useState([])
   const [reps, setReps] = useState([])
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
+  const [country, setCountry] = useState('UK')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -120,9 +129,10 @@ export default function AdminPanel({ currentUser }) {
     const { error: err } = await supabase.from('sales_reps').insert({
       name: name.trim(),
       job_title: title.trim() || null,
+      country: country || null,
     })
     if (err) { setError(err.message) }
-    else { setName(''); setTitle(''); fetchReps() }
+    else { setName(''); setTitle(''); setCountry('UK'); fetchReps() }
     setLoading(false)
   }
 
@@ -190,7 +200,7 @@ export default function AdminPanel({ currentUser }) {
       <p style={styles.sub}>Add your team members here. They'll appear in the "Log deal" rep selector and on the leaderboard.</p>
 
       <div style={styles.form}>
-        <div style={styles.formRow}>
+        <div style={{ ...styles.formRow, gridTemplateColumns: '1fr 1fr 140px auto' }}>
           <div style={styles.formField}>
             <label style={styles.label}>Full name</label>
             <input
@@ -210,6 +220,18 @@ export default function AdminPanel({ currentUser }) {
               onChange={e => setTitle(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addRep()}
             />
+          </div>
+          <div style={styles.formField}>
+            <label style={styles.label}>Country</label>
+            <select
+              style={styles.input}
+              value={country}
+              onChange={e => setCountry(e.target.value)}
+            >
+              {COUNTRIES.map(c => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
           </div>
           <div style={styles.formAction}>
             <label style={{ ...styles.label, visibility: 'hidden' }}>Add</label>
@@ -243,7 +265,10 @@ export default function AdminPanel({ currentUser }) {
                 <div style={{ ...styles.avatar, background: bg, color: fg }}>{initials}</div>
                 <div style={styles.repInfo}>
                   <div style={styles.repName}>{rep.name}</div>
-                  {rep.job_title && <div style={styles.repTitle}>{rep.job_title}</div>}
+                  <div style={styles.repTitle}>
+                    {[rep.job_title, rep.country ? `${COUNTRY_FLAG[rep.country] || ''} ${rep.country}` : null]
+                      .filter(Boolean).join(' · ')}
+                  </div>
                 </div>
                 <div style={styles.repMeta}>
                   <span style={styles.addedDate}>Added {new Date(rep.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>

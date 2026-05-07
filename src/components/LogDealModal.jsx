@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getCurrentPeriod, getCurrentMonth } from '../lib/fiscalYear'
 
+const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
+
 export default function LogDealModal({ onClose, currentUser }) {
   const [packageId, setPackageId] = useState('')
   const [repId, setRepId] = useState('')
@@ -85,7 +87,11 @@ export default function LogDealModal({ onClose, currentUser }) {
               <label style={styles.label}>Sales rep</label>
               <select style={styles.input} value={repId} onChange={e => { setRepId(e.target.value); setError(null) }}>
                 <option value="">Select a rep...</option>
-                {reps.map(rep => (<option key={rep.id} value={rep.id}>{rep.name}</option>))}
+                {reps.map(rep => (
+                  <option key={rep.id} value={rep.id}>
+                    {rep.country && COUNTRY_FLAG[rep.country] ? `${COUNTRY_FLAG[rep.country]} ` : ''}{rep.name}
+                  </option>
+                ))}
               </select>
               {reps.length === 0 && <div style={{fontSize:"12px",color:"var(--text3)",marginTop:"6px"}}>No reps yet — add them in Admin panel.</div>}
             </div>
