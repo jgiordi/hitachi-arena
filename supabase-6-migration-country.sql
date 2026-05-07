@@ -24,3 +24,9 @@ create policy "superusers can update deals"
   on public.deals for update to authenticated
   using (is_superuser())
   with check (is_superuser());
+
+-- Add DELETE policy for deals (superusers can delete any deal)
+drop policy if exists "superusers can delete deals" on public.deals;
+create policy "superusers can delete deals"
+  on public.deals for delete to authenticated
+  using (is_superuser());

@@ -28,6 +28,7 @@ export default function AdminPanel({ currentUser }) {
   // Deals
   const [deals, setDeals] = useState([])
   const [editDeal, setEditDeal] = useState(null)
+  const [deletingDeal, setDeletingDeal] = useState(null)
 
   // Packages
   const [packages, setPackages] = useState([])
@@ -62,6 +63,14 @@ export default function AdminPanel({ currentUser }) {
       .order('closed_at', { ascending: false })
       .limit(50)
     if (data) setDeals(data)
+  }
+
+  async function deleteDeal(id) {
+    setDeletingDeal(id)
+    await supabase.from('deals').delete().eq('id', id)
+    await fetchDeals()
+    fetchPackages()
+    setDeletingDeal(null)
   }
 
   async function fetchPackages() {
@@ -498,6 +507,14 @@ export default function AdminPanel({ currentUser }) {
                 onClick={() => setEditDeal(deal)}
               >
                 Edit
+              </button>
+              <button
+                style={{ ...styles.deleteBtn, opacity: deletingDeal === deal.id ? 0.5 : 1 }}
+                onClick={() => deleteDeal(deal.id)}
+                disabled={deletingDeal === deal.id}
+                title="Delete deal"
+              >
+                ✕
               </button>
             </div>
           ))
