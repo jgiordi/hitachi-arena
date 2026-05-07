@@ -18,17 +18,20 @@ export default function LogDealModal({ onClose, currentUser }) {
       if (data) setReps(data)
     })
     supabase.from('packages').select('*').order('created_at').then(({ data }) => {
-      if (data) setPackages(data)
+      if (data) {
+        setPackages(data)
+        if (data.length === 1) setPackageId(data[0].id)
+      }
     })
   }, [])
 
   const selectedPkg = packages.find(p => p.id === packageId)
 
   async function handleSubmit() {
-    if (!packageId || !repId || !client || !value) {
-      setError('Please fill in all fields.')
-      return
-    }
+    if (!repId) { setError('Please select a sales rep.'); return }
+    if (!packageId) { setError('Please select a package.'); return }
+    if (!client) { setError('Please enter a client name.'); return }
+    if (!value) { setError('Please enter a deal value.'); return }
     if (parseFloat(value) <= 0) {
       setError('Deal value must be greater than zero.')
       return
