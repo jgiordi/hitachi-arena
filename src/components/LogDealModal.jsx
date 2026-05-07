@@ -80,7 +80,7 @@ export default function LogDealModal({ onClose, currentUser }) {
           <>
             <div style={styles.field}>
               <label style={styles.label}>Sales rep</label>
-              <select style={styles.input} value={repId} onChange={e => setRepId(e.target.value)}>
+              <select style={styles.input} value={repId} onChange={e => { setRepId(e.target.value); setError(null) }}>
                 <option value="">Select a rep...</option>
                 {reps.map(rep => (<option key={rep.id} value={rep.id}>{rep.name}</option>))}
               </select>
@@ -97,7 +97,7 @@ export default function LogDealModal({ onClose, currentUser }) {
                       ...styles.pkgOption,
                       ...(packageId === pkg.id ? { ...styles.pkgSelected, borderColor: pkg.color } : {}),
                     }}
-                    onClick={() => setPackageId(pkg.id)}
+                    onClick={() => { setPackageId(pkg.id); setError(null) }}
                   >
                     <span style={styles.pkgName}>{pkg.name}</span>
                     <span style={{ ...styles.pkgPts, color: pkg.color }}>+{pkg.points} pts</span>
@@ -112,7 +112,7 @@ export default function LogDealModal({ onClose, currentUser }) {
                 style={styles.input}
                 placeholder="e.g. HSBC, NHS Trust, Rolls Royce..."
                 value={client}
-                onChange={e => setClient(e.target.value)}
+                onChange={e => { setClient(e.target.value); setError(null) }}
               />
             </div>
 
@@ -124,7 +124,7 @@ export default function LogDealModal({ onClose, currentUser }) {
                 min="0"
                 placeholder="e.g. 45000"
                 value={value}
-                onChange={e => setValue(e.target.value)}
+                onChange={e => { setValue(e.target.value); setError(null) }}
               />
             </div>
 
