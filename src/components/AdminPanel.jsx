@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import EditDealModal from './EditDealModal'
 
 const COUNTRIES = [
   { value: 'UK',      label: '🇬🇧 UK' },
@@ -23,6 +24,10 @@ export default function AdminPanel({ currentUser }) {
   const [editRepError, setEditRepError] = useState(null)
   const [approving, setApproving] = useState(null)
   const [rejecting, setRejecting] = useState(null)
+
+  // Deals
+  const [deals, setDeals] = useState([])
+  const [editDeal, setEditDeal] = useState(null)
 
   // Packages
   const [packages, setPackages] = useState([])
@@ -50,6 +55,15 @@ export default function AdminPanel({ currentUser }) {
     if (data) setReps(data)
   }
 
+  async function fetchDeals() {
+    const { data } = await supabase
+      .from('deals')
+      .select('*, sales_reps(name)')
+      .order('closed_at', { ascending: false })
+      .limit(50)
+    if (data) setDeals(data)
+  }
+
   async function fetchPackages() {
     const [{ data: pkgs }, { data: deals }] = await Promise.all([
       supabase.from('packages').select('*').order('created_at'),
@@ -67,6 +81,7 @@ export default function AdminPanel({ currentUser }) {
     fetchPendingUsers()
     fetchReps()
     fetchPackages()
+    fetchDeals()
   }, [])
 
   function slugify(str) {
@@ -458,6 +473,44 @@ export default function AdminPanel({ currentUser }) {
           })
         )}
       </div>
+
+      {/* Manage deals */}
+      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage deals</h2>
+      <p style={styles.sub}>View and edit the 50 most recent deals. Changes update the leaderboard immediately.</p>
+
+      <div style={styles.list}>
+        {deals.length === 0 ? (
+          <div style={styles.empty}>No deals logged yet.</div>
+        ) : (
+          deals.map(deal => (
+            <div key={deal.id} style={styles.dealRow}>
+              <div style={styles.dealDate}>
+                {new Date(deal.closed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+              </div>
+              <div style={styles.repInfo}>
+                <div style={styles.repName}>{deal.sales_reps?.name || '—'}</div>
+                <div style={styles.repTitle}>{deal.package_name} · {deal.client_name || '—'}</div>
+              </div>
+              <div style={styles.dealValue}>£{deal.value >= 1000 ? Math.round(deal.value / 1000) + 'k' : deal.value}</div>
+              <div style={styles.dealPts}>+{deal.points_earned} pts</div>
+              <button
+                style={styles.rejectBtn}
+                onClick={() => setEditDeal(deal)}
+              >
+                Edit
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {editDeal && (
+        <EditDealModal
+          deal={editDeal}
+          onClose={() => setEditDeal(null)}
+          onSaved={() => { fetchDeals(); fetchPackages() }}
+        />
+      )}
     </div>
   )
 }
@@ -580,5 +633,35 @@ const styles = {
     height: '10px',
     borderRadius: '50%',
     flexShrink: 0,
+  },
+  dealRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '10px 16px',
+    borderBottom: '1px solid var(--border)',
+  },
+  dealDate: {
+    fontSize: '12px',
+    color: 'var(--text3)',
+    whiteSpace: 'nowrap',
+    width: '72px',
+    flexShrink: 0,
+  },
+  dealValue: {
+    fontSize: '13px',
+    color: 'var(--text2)',
+    whiteSpace: 'nowrap',
+    fontVariantNumeric: 'tabular-nums',
+    minWidth: '52px',
+    textAlign: 'right',
+  },
+  dealPts: {
+    fontSize: '12px',
+    fontWeight: '500',
+    color: 'var(--red)',
+    whiteSpace: 'nowrap',
+    minWidth: '52px',
+    textAlign: 'right',
   },
 }

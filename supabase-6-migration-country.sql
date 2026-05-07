@@ -17,3 +17,10 @@ create policy "approved users can update sales_reps"
   on public.sales_reps for update to authenticated
   using (is_approved())
   with check (is_approved());
+
+-- Add UPDATE policy for deals (superusers can edit any deal)
+drop policy if exists "superusers can update deals" on public.deals;
+create policy "superusers can update deals"
+  on public.deals for update to authenticated
+  using (is_superuser())
+  with check (is_superuser());
