@@ -18,6 +18,9 @@ export default function AdminPanel({ currentUser }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [editingRep, setEditingRep] = useState(null)
+  const [editRepFields, setEditRepFields] = useState({})
+  const [editRepError, setEditRepError] = useState(null)
   const [approving, setApproving] = useState(null)
   const [rejecting, setRejecting] = useState(null)
 
@@ -143,6 +146,18 @@ export default function AdminPanel({ currentUser }) {
     setDeleting(null)
   }
 
+  async function saveRep(rep) {
+    if (!editRepFields.name?.trim()) { setEditRepError('Name is required.'); return }
+    setEditRepError(null)
+    const { error: err } = await supabase.from('sales_reps').update({
+      name: editRepFields.name.trim(),
+      job_title: editRepFields.job_title?.trim() || null,
+      country: editRepFields.country || null,
+    }).eq('id', rep.id)
+    if (err) { setEditRepError(err.message) }
+    else { setEditingRep(null); fetchReps() }
+  }
+
   return (
     <div>
       {/* Pending approvals */}
@@ -252,7 +267,6 @@ export default function AdminPanel({ currentUser }) {
           <div style={styles.empty}>No reps added yet. Add your first team member above.</div>
         ) : (
           reps.map((rep, i) => {
-
             const initials = rep.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
             const colors = [
               ['#E6F1FB', '#185FA5'], ['#E1F5EE', '#0F6E56'],
@@ -260,31 +274,74 @@ export default function AdminPanel({ currentUser }) {
               ['#FBEAF0', '#993556'], ['#EAF3DE', '#3B6D11'],
             ]
             const [bg, fg] = colors[i % colors.length]
+            const isEditing = editingRep === rep.id
             return (
               <div key={rep.id} style={styles.repRow}>
-                <div style={{ ...styles.avatar, background: bg, color: fg }}>{initials}</div>
-                <div style={styles.repInfo}>
-                  <div style={styles.repName}>{rep.name}</div>
-                  <div style={styles.repTitle}>
-                    {[rep.job_title, rep.country ? `${COUNTRY_FLAG[rep.country] || ''} ${rep.country}` : null]
-                      .filter(Boolean).join(' · ')}
-                  </div>
-                </div>
-                <div style={styles.repMeta}>
-                  <span style={styles.addedDate}>Added {new Date(rep.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-                </div>
-                <button
-                  style={{ ...styles.deleteBtn, opacity: deleting === rep.id ? 0.5 : 1 }}
-                  onClick={() => deleteRep(rep.id)}
-                  disabled={deleting === rep.id}
-                  title="Remove rep"
-                >
-                  ✕
-                </button>
+                {isEditing ? (
+                  <>
+                    <input
+                      style={{ ...styles.input, flex: 1 }}
+                      placeholder="Full name"
+                      value={editRepFields.name}
+                      onChange={e => setEditRepFields(f => ({ ...f, name: e.target.value }))}
+                    />
+                    <input
+                      style={{ ...styles.input, flex: 1 }}
+                      placeholder="Job title (optional)"
+                      value={editRepFields.job_title}
+                      onChange={e => setEditRepFields(f => ({ ...f, job_title: e.target.value }))}
+                    />
+                    <select
+                      style={{ ...styles.input, width: '130px', flexShrink: 0 }}
+                      value={editRepFields.country}
+                      onChange={e => setEditRepFields(f => ({ ...f, country: e.target.value }))}
+                    >
+                      <option value="">No country</option>
+                      {COUNTRIES.map(c => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                    <button style={styles.approveBtn} onClick={() => saveRep(rep)}>Save</button>
+                    <button style={styles.rejectBtn} onClick={() => { setEditingRep(null); setEditRepError(null) }}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ ...styles.avatar, background: bg, color: fg }}>{initials}</div>
+                    <div style={styles.repInfo}>
+                      <div style={styles.repName}>{rep.name}</div>
+                      <div style={styles.repTitle}>
+                        {[rep.job_title, rep.country ? `${COUNTRY_FLAG[rep.country] || ''} ${rep.country}` : null]
+                          .filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <div style={styles.repMeta}>
+                      <span style={styles.addedDate}>Added {new Date(rep.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                    <button
+                      style={styles.rejectBtn}
+                      onClick={() => {
+                        setEditingRep(rep.id)
+                        setEditRepFields({ name: rep.name, job_title: rep.job_title || '', country: rep.country || '' })
+                        setEditRepError(null)
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      style={{ ...styles.deleteBtn, opacity: deleting === rep.id ? 0.5 : 1 }}
+                      onClick={() => deleteRep(rep.id)}
+                      disabled={deleting === rep.id}
+                      title="Remove rep"
+                    >
+                      ✕
+                    </button>
+                  </>
+                )}
               </div>
             )
           })
         )}
+        {editRepError && <div style={styles.error}>{editRepError}</div>}
       </div>
 
       {/* Manage packages */}
