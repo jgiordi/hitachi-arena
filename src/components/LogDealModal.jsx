@@ -29,6 +29,10 @@ export default function LogDealModal({ onClose, currentUser }) {
       setError('Please fill in all fields.')
       return
     }
+    if (parseFloat(value) <= 0) {
+      setError('Deal value must be greater than zero.')
+      return
+    }
     setLoading(true)
     setError(null)
 
@@ -117,6 +121,7 @@ export default function LogDealModal({ onClose, currentUser }) {
               <input
                 style={styles.input}
                 type="number"
+                min="0"
                 placeholder="e.g. 45000"
                 value={value}
                 onChange={e => setValue(e.target.value)}
