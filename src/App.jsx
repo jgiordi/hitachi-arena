@@ -8,6 +8,7 @@ import PackagesPage from './components/PackagesPage'
 import ActivityFeed from './components/ActivityFeed'
 import LogDealModal from './components/LogDealModal'
 import AdminPanel from './components/AdminPanel'
+import AppAdminPanel from './components/AppAdminPanel'
 
 const ALLOWED_DOMAINS = ['hitachisolutions.com', 'hsdyn.com']
 
@@ -164,7 +165,8 @@ export default function App() {
     )
   }
 
-  const tabs = ['leaderboard', 'packages', ...(currentUser?.is_superuser ? ['admin'] : [])]
+  const TAB_LABELS = { leaderboard: 'Leaderboard', packages: 'Packages', admin: 'Admin', 'app-admin': 'App Admin' }
+  const tabs = ['leaderboard', 'packages', 'admin', ...(currentUser?.is_superuser ? ['app-admin'] : [])]
 
   return (
     <div style={styles.app}>
@@ -200,7 +202,7 @@ export default function App() {
               style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}
               onClick={() => setTab(t)}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {TAB_LABELS[t] || t}
             </button>
           ))}
         </div>
@@ -212,7 +214,8 @@ export default function App() {
           </>
         )}
         {tab === 'packages' && <PackagesPage />}
-        {tab === 'admin' && currentUser?.is_superuser && <AdminPanel currentUser={currentUser} />}
+        {tab === 'admin' && <AdminPanel currentUser={currentUser} />}
+        {tab === 'app-admin' && currentUser?.is_superuser && <AppAdminPanel currentUser={currentUser} />}
       </main>
 
       {showLog && <LogDealModal onClose={() => setShowLog(false)} currentUser={currentUser} />}

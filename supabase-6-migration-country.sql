@@ -18,15 +18,17 @@ create policy "approved users can update sales_reps"
   using (is_approved())
   with check (is_approved());
 
--- Add UPDATE policy for deals (superusers can edit any deal)
+-- Add UPDATE policy for deals (any approved user can edit deals)
 drop policy if exists "superusers can update deals" on public.deals;
-create policy "superusers can update deals"
+drop policy if exists "approved users can update deals" on public.deals;
+create policy "approved users can update deals"
   on public.deals for update to authenticated
-  using (is_superuser())
-  with check (is_superuser());
+  using (is_approved())
+  with check (is_approved());
 
--- Add DELETE policy for deals (superusers can delete any deal)
+-- Add DELETE policy for deals (any approved user can delete deals)
 drop policy if exists "superusers can delete deals" on public.deals;
-create policy "superusers can delete deals"
+drop policy if exists "approved users can delete deals" on public.deals;
+create policy "approved users can delete deals"
   on public.deals for delete to authenticated
-  using (is_superuser());
+  using (is_approved());

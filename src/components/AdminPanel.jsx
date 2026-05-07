@@ -11,7 +11,6 @@ const COUNTRIES = [
 const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
 
 export default function AdminPanel({ currentUser }) {
-  const [pendingUsers, setPendingUsers] = useState([])
   const [reps, setReps] = useState([])
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
@@ -22,13 +21,6 @@ export default function AdminPanel({ currentUser }) {
   const [editingRep, setEditingRep] = useState(null)
   const [editRepFields, setEditRepFields] = useState({})
   const [editRepError, setEditRepError] = useState(null)
-  const [approving, setApproving] = useState(null)
-  const [rejecting, setRejecting] = useState(null)
-
-  // Active users
-  const [activeUsers, setActiveUsers] = useState([])
-  const [togglingSuper, setTogglingSuper] = useState(null)
-  const [revokingUser, setRevokingUser] = useState(null)
 
   // Deals
   const [deals, setDeals] = useState([])
@@ -46,39 +38,6 @@ export default function AdminPanel({ currentUser }) {
   const [editingPkg, setEditingPkg] = useState(null)
   const [editFields, setEditFields] = useState({})
   const [deletingPkg, setDeletingPkg] = useState(null)
-
-  async function fetchPendingUsers() {
-    const { data } = await supabase
-      .from('reps')
-      .select('*')
-      .eq('approved', false)
-      .order('created_at')
-    if (data) setPendingUsers(data)
-  }
-
-  async function fetchActiveUsers() {
-    const { data } = await supabase
-      .from('reps')
-      .select('*')
-      .eq('approved', true)
-      .order('created_at')
-    if (data) setActiveUsers(data)
-  }
-
-  async function toggleSuperuser(user) {
-    setTogglingSuper(user.id)
-    await supabase.from('reps').update({ is_superuser: !user.is_superuser }).eq('id', user.id)
-    fetchActiveUsers()
-    setTogglingSuper(null)
-  }
-
-  async function revokeAccess(user) {
-    setRevokingUser(user.id)
-    await supabase.from('reps').update({ approved: false, is_superuser: false }).eq('id', user.id)
-    fetchActiveUsers()
-    fetchPendingUsers()
-    setRevokingUser(null)
-  }
 
   async function fetchReps() {
     const { data } = await supabase.from('sales_reps').select('*').order('name')
@@ -116,8 +75,6 @@ export default function AdminPanel({ currentUser }) {
   }
 
   useEffect(() => {
-    fetchPendingUsers()
-    fetchActiveUsers()
     fetchReps()
     fetchPackages()
     fetchDeals()
@@ -165,21 +122,6 @@ export default function AdminPanel({ currentUser }) {
     setDeletingPkg(null)
   }
 
-  async function approveUser(user) {
-    setApproving(user.id)
-    await supabase.from('reps').update({ approved: true }).eq('id', user.id)
-    fetchPendingUsers()
-    fetchActiveUsers()
-    setApproving(null)
-  }
-
-  async function rejectUser(user) {
-    setRejecting(user.id)
-    await supabase.from('reps').delete().eq('id', user.id)
-    fetchPendingUsers()
-    setRejecting(null)
-  }
-
   async function addRep() {
     if (!name.trim()) { setError('Name is required.'); return }
     setLoading(true)
@@ -215,116 +157,8 @@ export default function AdminPanel({ currentUser }) {
 
   return (
     <div>
-      {/* Pending approvals */}
-      <h2 style={styles.sectionTitle}>Pending approvals</h2>
-      <p style={styles.sub}>Users who have requested access and are waiting for approval.</p>
-
-      <div style={{ ...styles.list, marginBottom: '2rem' }}>
-        {pendingUsers.length === 0 ? (
-          <div style={styles.empty}>No pending requests.</div>
-        ) : (
-          pendingUsers.map((user, i) => {
-            const initials = user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-            const colors = [
-              ['#E6F1FB', '#185FA5'], ['#E1F5EE', '#0F6E56'],
-              ['#FAEEDA', '#854F0B'], ['#EEEDFE', '#534AB7'],
-              ['#FBEAF0', '#993556'], ['#EAF3DE', '#3B6D11'],
-            ]
-            const [bg, fg] = colors[i % colors.length]
-            return (
-              <div key={user.id} style={styles.repRow}>
-                <div style={{ ...styles.avatar, background: bg, color: fg }}>{initials}</div>
-                <div style={styles.repInfo}>
-                  <div style={styles.repName}>{user.name}</div>
-                  <div style={styles.repTitle}>{user.email}</div>
-                </div>
-                <div style={styles.repMeta}>
-                  <span style={styles.addedDate}>
-                    Requested {new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    style={{ ...styles.approveBtn, opacity: approving === user.id ? 0.6 : 1 }}
-                    onClick={() => approveUser(user)}
-                    disabled={approving === user.id || rejecting === user.id}
-                  >
-                    {approving === user.id ? '...' : 'Approve'}
-                  </button>
-                  <button
-                    style={{ ...styles.rejectBtn, opacity: rejecting === user.id ? 0.6 : 1 }}
-                    onClick={() => rejectUser(user)}
-                    disabled={approving === user.id || rejecting === user.id}
-                  >
-                    {rejecting === user.id ? '...' : 'Reject'}
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
-
-      {/* Active users */}
-      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Active users</h2>
-      <p style={styles.sub}>All users with access to Sales Arena. Toggle admin rights or revoke access.</p>
-
-      <div style={styles.list}>
-        {activeUsers.length === 0 ? (
-          <div style={styles.empty}>No active users yet.</div>
-        ) : (
-          activeUsers.map((user, i) => {
-            const initials = user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-            const colors = [
-              ['#E6F1FB', '#185FA5'], ['#E1F5EE', '#0F6E56'],
-              ['#FAEEDA', '#854F0B'], ['#EEEDFE', '#534AB7'],
-              ['#FBEAF0', '#993556'], ['#EAF3DE', '#3B6D11'],
-            ]
-            const [bg, fg] = colors[i % colors.length]
-            const isMe = user.id === currentUser?.id
-            return (
-              <div key={user.id} style={styles.repRow}>
-                <div style={{ ...styles.avatar, background: bg, color: fg }}>{initials}</div>
-                <div style={styles.repInfo}>
-                  <div style={{ ...styles.repName, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {user.name}
-                    {isMe && <span style={styles.youTag}>you</span>}
-                    {user.is_superuser && <span style={styles.adminTag}>admin</span>}
-                  </div>
-                  <div style={styles.repTitle}>{user.email}</div>
-                </div>
-                <div style={styles.repMeta}>
-                  <span style={styles.addedDate}>
-                    Joined {new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
-                  </span>
-                </div>
-                {!isMe && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      style={{ ...styles.rejectBtn, opacity: togglingSuper === user.id ? 0.6 : 1 }}
-                      onClick={() => toggleSuperuser(user)}
-                      disabled={togglingSuper === user.id || revokingUser === user.id}
-                      title={user.is_superuser ? 'Remove admin rights' : 'Grant admin rights'}
-                    >
-                      {togglingSuper === user.id ? '...' : user.is_superuser ? 'Remove admin' : 'Make admin'}
-                    </button>
-                    <button
-                      style={{ ...styles.revokeBtn, opacity: revokingUser === user.id ? 0.6 : 1 }}
-                      onClick={() => revokeAccess(user)}
-                      disabled={togglingSuper === user.id || revokingUser === user.id}
-                    >
-                      {revokingUser === user.id ? '...' : 'Revoke'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })
-        )}
-      </div>
-
       {/* Manage sales reps */}
-      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage sales reps</h2>
+      <h2 style={styles.sectionTitle}>Manage sales reps</h2>
       <p style={styles.sub}>Add your team members here. They'll appear in the "Log deal" rep selector and on the leaderboard.</p>
 
       <div style={styles.form}>
