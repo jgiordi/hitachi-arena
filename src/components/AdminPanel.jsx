@@ -39,9 +39,9 @@ export default function AdminPanel({ currentUser }) {
   const [editRepFields, setEditRepFields] = useState({})
   const [editRepError, setEditRepError] = useState(null)
 
-  // Log Activity state
+  // Log Deal state
   const [selectedRep, setSelectedRep] = useState('')
-  const [activityType, setActivityType] = useState('')
+  const [dealType, setDealType] = useState('')
   const [isNetNew, setIsNetNew] = useState(false)
   const [pipelineTier, setPipelineTier] = useState('none')
   const [logLoading, setLogLoading] = useState(false)
@@ -131,10 +131,10 @@ export default function AdminPanel({ currentUser }) {
     else { setEditingRep(null); fetchReps() }
   }
 
-  // Log activity with structured inputs
-  async function logActivity() {
+  // Log deal with structured inputs
+  async function logDeal() {
     if (!selectedRep) { setLogError('Please select a seller.'); return }
-    if (!activityType) { setLogError('Please select an activity type.'); return }
+    if (!dealType) { setLogError('Please select a deal type.'); return }
     
     setLogLoading(true)
     setLogError(null)
@@ -143,13 +143,13 @@ export default function AdminPanel({ currentUser }) {
     const period = getCurrentPeriod(now)
     const month = getCurrentMonth(now)
 
-    // Calculate points based on activity type
+    // Calculate points based on deal type
     let points = 0
     let packageId = 'cloud-assessment'
     let packageName = 'Cloud Assessment'
     let value = 0
 
-    if (activityType === 'assessment') {
+    if (dealType === 'assessment') {
       points = 100 // FY26 assessment base points
       if (isNetNew) points += 75 // Net new logo bonus
     }
@@ -183,7 +183,7 @@ export default function AdminPanel({ currentUser }) {
     } else {
       setLogSuccess(true)
       setSelectedRep('')
-      setActivityType('')
+      setDealType('')
       setIsNetNew(false)
       setPipelineTier('none')
       fetchDeals()
@@ -194,8 +194,8 @@ export default function AdminPanel({ currentUser }) {
 
   return (
     <div>
-      {/* Log Activity Section - Primary */}
-      <h2 style={styles.sectionTitle}>Log Activity</h2>
+      {/* Log Deal Section - Primary */}
+      <h2 style={styles.sectionTitle}>Log Deal</h2>
       <p style={styles.sub}>Monthly logging of seller activities. Select a seller and use the checkboxes to record their achievements.</p>
 
       <div style={styles.logSection}>
@@ -217,14 +217,14 @@ export default function AdminPanel({ currentUser }) {
           </div>
 
           <div style={styles.activitySection}>
-            <label style={styles.label}>Activity Type</label>
+            <label style={styles.label}>Deal Type</label>
             <div style={styles.checkboxGrid}>
               <label style={styles.checkboxLabel}>
                 <input
                   type="radio"
-                  name="activity"
-                  checked={activityType === 'assessment'}
-                  onChange={() => { setActivityType('assessment'); setLogError(null) }}
+                  name="deal"
+                  checked={dealType === 'assessment'}
+                  onChange={() => { setDealType('assessment'); setLogError(null) }}
                   style={styles.checkbox}
                 />
                 <span style={styles.checkboxText}>☁️ Cloud Assessment Closed</span>
@@ -269,14 +269,14 @@ export default function AdminPanel({ currentUser }) {
           </div>
 
           {logError && <div style={styles.error}>{logError}</div>}
-          {logSuccess && <div style={styles.success}>✓ Activity logged successfully!</div>}
+          {logSuccess && <div style={styles.success}>✓ Deal logged successfully!</div>}
 
           <button
             style={{ ...styles.logBtn, opacity: logLoading ? 0.7 : 1 }}
-            onClick={logActivity}
-            disabled={logLoading || !selectedRep || !activityType}
+            onClick={logDeal}
+            disabled={logLoading || !selectedRep || !dealType}
           >
-            {logLoading ? 'Logging...' : 'Log Activity'}
+            {logLoading ? 'Logging...' : 'Log Deal'}
           </button>
         </div>
       </div>
