@@ -57,7 +57,6 @@ export default function ActivityFeed() {
               <strong style={styles.strong}>{d.sales_reps?.name || 'Someone'}</strong>
               {' '}closed a{' '}
               <strong style={styles.strong}>{d.package_name}</strong>
-              {d.client_name ? ` with ${d.client_name}` : ''}
               {' '}— <span style={styles.pts}>+{d.points_earned} pts</span>
             </div>
             <div style={styles.time}>{timeAgo(d.closed_at)}</div>

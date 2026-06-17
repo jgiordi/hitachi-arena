@@ -59,3 +59,26 @@ export function getDaysLeftInFY(date = new Date()) {
   const fyEnd = new Date(getFYEndYear(date), 2, 31, 23, 59, 59)
   return Math.max(0, Math.ceil((fyEnd - date) / (1000 * 60 * 60 * 24)))
 }
+
+/** Days remaining until end of H1 (September 30). */
+export function getDaysLeftInH1(date = new Date()) {
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  
+  // H1 is Apr-Sep, H2 is Oct-Mar
+  // If we're in H1 (Apr-Sep, months 3-8), end date is Sep 30 of current year
+  // If we're in H2 (Oct-Mar, months 9-11 or 0-2), we're past H1 so return 0 or next year's H1
+  let h1End
+  if (month >= 3 && month <= 8) {
+    // Currently in H1
+    h1End = new Date(year, 8, 30, 23, 59, 59) // Sep 30
+  } else if (month >= 9) {
+    // In H2 (Oct-Dec), next H1 ends Sep 30 next year
+    h1End = new Date(year + 1, 8, 30, 23, 59, 59)
+  } else {
+    // In H2 (Jan-Mar), next H1 ends Sep 30 of current year
+    h1End = new Date(year, 8, 30, 23, 59, 59)
+  }
+  
+  return Math.max(0, Math.ceil((h1End - date) / (1000 * 60 * 60 * 24)))
+}

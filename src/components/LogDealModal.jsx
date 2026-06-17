@@ -2,7 +2,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getCurrentPeriod, getCurrentMonth } from '../lib/fiscalYear'
 
-const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
+const SEGMENT_FLAG = { 
+  'UK Commercial': '🇬🇧', 
+  'UK Government': '🇬🇧', 
+  'France': '🇫🇷', 
+  'Germany': '🇩🇪',
+  'LTS': '🌐',
+}
 
 export default function LogDealModal({ onClose, currentUser }) {
   const [packageId, setPackageId] = useState('')
@@ -89,11 +95,11 @@ export default function LogDealModal({ onClose, currentUser }) {
                 <option value="">Select a rep...</option>
                 {reps.map(rep => (
                   <option key={rep.id} value={rep.id}>
-                    {rep.country && COUNTRY_FLAG[rep.country] ? `${COUNTRY_FLAG[rep.country]} ` : ''}{rep.name}
+                    {rep.segment && SEGMENT_FLAG[rep.segment] ? `${SEGMENT_FLAG[rep.segment]} ` : ''}{rep.name}
                   </option>
                 ))}
               </select>
-              {reps.length === 0 && <div style={{fontSize:"12px",color:"var(--text3)",marginTop:"6px"}}>No reps yet — add them in Admin panel.</div>}
+              {reps.length === 0 && <div style={{fontSize:"12px",color:"var(--text3)",marginTop:"6px"}}>No sellers yet — add them in Admin panel.</div>}
             </div>
 
             <div style={styles.field}>

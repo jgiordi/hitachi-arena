@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { getCurrentPeriodLabel, getCurrentFYPrefix, getDaysLeftInFY } from './lib/fiscalYear'
+import { getCurrentPeriodLabel, getCurrentFYPrefix, getDaysLeftInFY, getDaysLeftInH1 } from './lib/fiscalYear'
 import LoginPage from './pages/LoginPage'
 import SignUpPage from './pages/SignUpPage'
 import Leaderboard from './components/Leaderboard'
-import PackagesPage from './components/PackagesPage'
+import BadgesPage from './components/BadgesPage'
+import BreakdownPage from './components/BreakdownPage'
 import ActivityFeed from './components/ActivityFeed'
 import LogDealModal from './components/LogDealModal'
 import AdminPanel from './components/AdminPanel'
@@ -12,51 +13,123 @@ import AppAdminPanel from './components/AppAdminPanel'
 
 const ALLOWED_DOMAINS = ['hitachisolutions.com', 'hsdyn.com']
 
-function StatsBar({ currentUser }) {
-  const [stats, setStats] = useState({ total_deals: 0, total_revenue: 0, days_left: 0, top_name: '' })
+const SEGMENTS = ['UK Commercial', 'UK Government', 'France', 'Germany']
+
+function RegionalKPIPanel({ currentUser }) {
+  const [segmentData, setSegmentData] = useState({})
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchStats() {
-      const now = new Date()
-      const fyPrefix = getCurrentFYPrefix(now)
-      const daysLeft = getDaysLeftInFY(now)
+    async function fetchSegmentData() {
+      const fyPrefix = getCurrentFYPrefix(new Date())
+      
+      // Fetch all sales reps with their segments
+      const { data: salesReps } = await supabase
+        .from('sales_reps')
+        .select('id, segment')
 
+      // Fetch all deals for current FY
       const { data: deals } = await supabase
         .from('deals')
-        .select('value, points_earned, rep_id, sales_reps(name)')
+        .select('rep_id, value, package_id')
         .like('period', fyPrefix + '%')
 
-      if (deals && deals.length > 0) {
-        const totalDeals = deals.length
-        const totalRevenue = deals.reduce((sum, d) => sum + (d.value || 0), 0)
-
-        const repPoints = {}
-        deals.forEach(d => {
-          const name = d.sales_reps?.name || 'Unknown'
-          repPoints[name] = (repPoints[name] || 0) + (d.points_earned || 0)
-        })
-        const topName = Object.entries(repPoints).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
-
-        setStats({ total_deals: totalDeals, total_revenue: totalRevenue, days_left: daysLeft, top_name: topName })
-      } else {
-        setStats(s => ({ ...s, days_left: daysLeft }))
+      if (!salesReps) {
+        setLoading(false)
+        return
       }
+
+      // Create segment lookup
+      const repSegment = {}
+      salesReps.forEach(rep => {
+        repSegment[rep.id] = rep.segment || 'UK Commercial'
+      })
+
+      // Aggregate by segment
+      const data = {}
+      SEGMENTS.forEach(seg => {
+        data[seg] = { assessments: 0, pipeline: 0 }
+      })
+
+      if (deals) {
+        deals.forEach(d => {
+          const segment = repSegment[d.rep_id] || 'UK Commercial'
+          if (data[segment]) {
+            // Count cloud assessments
+            if (d.package_id === 'cloud-assessment') {
+              data[segment].assessments += 1
+            }
+            // Sum pipeline (all deal values)
+            data[segment].pipeline += d.value || 0
+          }
+        })
+      }
+
+      setSegmentData(data)
+      setLoading(false)
     }
-    fetchStats()
+    fetchSegmentData()
   }, [])
 
-  const revenueStr = stats.total_revenue >= 1000000
-    ? '£' + (stats.total_revenue / 1000000).toFixed(1) + 'M'
-    : stats.total_revenue >= 1000
-    ? '£' + Math.round(stats.total_revenue / 1000) + 'k'
-    : '£' + stats.total_revenue
+  const formatPipeline = (val) => {
+    if (val >= 1000000) return '£' + (val / 1000000).toFixed(1) + 'M'
+    if (val >= 1000) return '£' + Math.round(val / 1000) + 'k'
+    return '£' + val
+  }
+
+  if (loading) {
+    return (
+      <div style={styles.regionalGrid}>
+        {SEGMENTS.map(seg => (
+          <div key={seg} style={styles.regionalCard}>
+            <div style={styles.regionalLabel}>{seg}</div>
+            <div style={styles.regionalLoading}>Loading...</div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <div style={styles.statsGrid}>
-      <div style={styles.stat}><div style={styles.statLabel}>Deals closed</div><div style={styles.statVal}>{stats.total_deals}</div><div style={styles.statSub}>this FY</div></div>
-      <div style={styles.stat}><div style={styles.statLabel}>Top earner</div><div style={styles.statVal}>{stats.top_name || '—'}</div><div style={styles.statSub}>leading the board</div></div>
-      <div style={styles.stat}><div style={styles.statLabel}>Revenue unlocked</div><div style={styles.statVal}>{revenueStr}</div><div style={styles.statSub}>FY total</div></div>
-      <div style={styles.stat}><div style={styles.statLabel}>Days remaining</div><div style={styles.statVal}>{stats.days_left}</div><div style={styles.statSub}>in this FY</div></div>
+    <div style={styles.regionalGrid}>
+      {SEGMENTS.map(seg => (
+        <div key={seg} style={styles.regionalCard}>
+          <div style={styles.regionalLabel}>{seg}</div>
+          <div style={styles.regionalMetrics}>
+            <div style={styles.metricRow}>
+              <span style={styles.metricLabel}>Cloud Assessments Sold</span>
+              <span style={styles.metricValue}>{segmentData[seg]?.assessments || 0}</span>
+            </div>
+            <div style={styles.metricRow}>
+              <span style={styles.metricLabel}>Pipeline Created (S2+)</span>
+              <span style={styles.metricValue}>{formatPipeline(segmentData[seg]?.pipeline || 0)}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DaysRemainingPanel() {
+  const now = new Date()
+  const daysLeftFY = getDaysLeftInFY(now)
+  const daysLeftH1 = getDaysLeftInH1(now)
+
+  return (
+    <div style={styles.daysPanel}>
+      <div style={styles.daysStat}>
+        <div style={styles.daysValue}>{daysLeftH1}</div>
+        <div style={styles.daysLabel}>Days Remaining in H1</div>
+      </div>
+      <div style={styles.daysDivider} />
+      <div style={styles.daysStat}>
+        <div style={styles.daysValue}>{daysLeftFY}</div>
+        <div style={styles.daysLabel}>Days Remaining in FY</div>
+      </div>
+      <div style={styles.daysFooter}>
+        As of 1 June · Figures uploaded monthly at the start of each month for the previous month
+      </div>
     </div>
   )
 }
@@ -165,8 +238,8 @@ export default function App() {
     )
   }
 
-  const TAB_LABELS = { leaderboard: 'Leaderboard', packages: 'Packages', admin: 'Admin', 'app-admin': 'App Admin' }
-  const tabs = ['leaderboard', 'packages', 'admin', ...(currentUser?.is_superuser ? ['app-admin'] : [])]
+  const TAB_LABELS = { leaderboard: 'Leaderboard', breakdown: 'Breakdown', badges: 'Badges', admin: 'Admin', 'app-admin': 'App Admin' }
+  const tabs = ['leaderboard', 'breakdown', 'badges', 'admin', ...(currentUser?.is_superuser ? ['app-admin'] : [])]
 
   return (
     <div style={styles.app}>
@@ -179,7 +252,7 @@ export default function App() {
               <text x="11" y="15.5" textAnchor="middle" fill="white" fontSize="13" fontWeight="600" fontFamily="DM Sans, sans-serif">H</text>
             </svg>
           </div>
-          <span style={styles.appName}>Sales Arena</span>
+          <span style={styles.appName}>Hitachi Solutions Cloud Cup</span>
           <span style={styles.quarter}>{getCurrentPeriodLabel()}</span>
         </div>
         <div style={styles.headerRight}>
@@ -193,7 +266,8 @@ export default function App() {
 
       {/* Main content */}
       <main style={styles.main}>
-        <StatsBar currentUser={currentUser} />
+        <RegionalKPIPanel currentUser={currentUser} />
+        <DaysRemainingPanel />
 
         <div style={styles.tabs}>
           {tabs.map(t => (
@@ -213,7 +287,8 @@ export default function App() {
             <ActivityFeed />
           </>
         )}
-        {tab === 'packages' && <PackagesPage />}
+        {tab === 'breakdown' && <BreakdownPage />}
+        {tab === 'badges' && <BadgesPage />}
         {tab === 'admin' && <AdminPanel currentUser={currentUser} />}
         {tab === 'app-admin' && currentUser?.is_superuser && <AppAdminPanel currentUser={currentUser} />}
       </main>
@@ -239,7 +314,7 @@ const styles = {
   },
   headerLeft: { display: 'flex', alignItems: 'center', gap: '10px' },
   logo: { lineHeight: 0 },
-  appName: { fontSize: '15px', fontWeight: '600', color: 'var(--text)', letterSpacing: '-0.01em' },
+  appName: { fontSize: '14px', fontWeight: '600', color: 'var(--text)', letterSpacing: '-0.01em' },
   quarter: {
     fontSize: '12px',
     color: 'var(--text3)',
@@ -278,22 +353,93 @@ const styles = {
     border: 'none',
     cursor: 'pointer',
   },
-  main: { maxWidth: '900px', margin: '0 auto', padding: '1.5rem 1.5rem 4rem' },
-  statsGrid: {
+  main: { maxWidth: '1000px', margin: '0 auto', padding: '1.5rem 1.5rem 4rem' },
+  // Regional KPI Panel styles
+  regionalGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
     gap: '12px',
-    marginBottom: '1.5rem',
+    marginBottom: '1rem',
   },
-  stat: {
+  regionalCard: {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius)',
     padding: '1rem',
   },
-  statLabel: { fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' },
-  statVal: { fontSize: '20px', fontWeight: '600', color: 'var(--text)', letterSpacing: '-0.02em' },
-  statSub: { fontSize: '11px', color: 'var(--text3)', marginTop: '2px' },
+  regionalLabel: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: 'var(--text)',
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid var(--border)',
+  },
+  regionalMetrics: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  metricRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  metricLabel: {
+    fontSize: '11px',
+    color: 'var(--text3)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.03em',
+  },
+  metricValue: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: 'var(--text)',
+  },
+  regionalLoading: {
+    fontSize: '12px',
+    color: 'var(--text3)',
+    padding: '1rem 0',
+    textAlign: 'center',
+  },
+  // Days Remaining Panel styles
+  daysPanel: {
+    display: 'flex',
+    alignItems: 'center',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    padding: '1rem 1.5rem',
+    marginBottom: '1.5rem',
+    gap: '2rem',
+    flexWrap: 'wrap',
+  },
+  daysStat: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  daysValue: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: 'var(--red)',
+  },
+  daysLabel: {
+    fontSize: '13px',
+    color: 'var(--text2)',
+    fontWeight: '500',
+  },
+  daysDivider: {
+    width: '1px',
+    height: '30px',
+    background: 'var(--border-strong)',
+  },
+  daysFooter: {
+    marginLeft: 'auto',
+    fontSize: '10px',
+    color: 'var(--text3)',
+    fontStyle: 'italic',
+  },
   tabs: {
     display: 'flex',
     gap: '4px',

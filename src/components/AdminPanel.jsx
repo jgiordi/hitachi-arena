@@ -1,20 +1,37 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getCurrentPeriod, getCurrentMonth } from '../lib/fiscalYear'
 import EditDealModal from './EditDealModal'
 
-const COUNTRIES = [
-  { value: 'UK',      label: '🇬🇧 UK' },
-  { value: 'France',  label: '🇫🇷 France' },
-  { value: 'Germany', label: '🇩🇪 Germany' },
+const SEGMENTS = [
+  { value: 'UK Commercial',  label: '🇬🇧 UK Commercial' },
+  { value: 'UK Government',  label: '🇬🇧 UK Government' },
+  { value: 'France',         label: '🇫🇷 France' },
+  { value: 'Germany',        label: '🇩🇪 Germany' },
+  { value: 'LTS',            label: '🌐 LTS' },
 ]
 
-const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
+const SEGMENT_FLAG = { 
+  'UK Commercial': '🇬🇧', 
+  'UK Government': '🇬🇧', 
+  'France': '🇫🇷', 
+  'Germany': '🇩🇪',
+  'LTS': '🌐',
+}
+
+// Pipeline tier options
+const PIPELINE_TIERS = [
+  { value: 'none', label: 'No pipeline', points: 0 },
+  { value: '50k-100k', label: '£50k – £100k', points: 25 },
+  { value: '100k-250k', label: '£100k – £250k', points: 50 },
+  { value: '250k+', label: '£250k+', points: 100 },
+]
 
 export default function AdminPanel({ currentUser }) {
   const [reps, setReps] = useState([])
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
-  const [country, setCountry] = useState('UK')
+  const [segment, setSegment] = useState('UK Commercial')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -22,22 +39,23 @@ export default function AdminPanel({ currentUser }) {
   const [editRepFields, setEditRepFields] = useState({})
   const [editRepError, setEditRepError] = useState(null)
 
+  // Log Activity state
+  const [selectedRep, setSelectedRep] = useState('')
+  const [activityType, setActivityType] = useState('')
+  const [isNetNew, setIsNetNew] = useState(false)
+  const [pipelineTier, setPipelineTier] = useState('none')
+  const [logLoading, setLogLoading] = useState(false)
+  const [logSuccess, setLogSuccess] = useState(false)
+  const [logError, setLogError] = useState(null)
+
   // Deals
   const [deals, setDeals] = useState([])
   const [editDeal, setEditDeal] = useState(null)
   const [deletingDeal, setDeletingDeal] = useState(null)
 
-  // Packages
+  // Packages (kept for backwards compatibility)
   const [packages, setPackages] = useState([])
   const [pkgUsage, setPkgUsage] = useState({})
-  const [pkgName, setPkgName] = useState('')
-  const [pkgPoints, setPkgPoints] = useState('')
-  const [pkgColor, setPkgColor] = useState('#185FA5')
-  const [pkgLoading, setPkgLoading] = useState(false)
-  const [pkgError, setPkgError] = useState(null)
-  const [editingPkg, setEditingPkg] = useState(null)
-  const [editFields, setEditFields] = useState({})
-  const [deletingPkg, setDeletingPkg] = useState(null)
 
   async function fetchReps() {
     const { data } = await supabase.from('sales_reps').select('*').order('name')
@@ -80,48 +98,6 @@ export default function AdminPanel({ currentUser }) {
     fetchDeals()
   }, [])
 
-  function slugify(str) {
-    return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  }
-
-  async function addPackage() {
-    if (!pkgName.trim()) { setPkgError('Name is required.'); return }
-    const pts = parseInt(pkgPoints)
-    if (!pkgPoints || isNaN(pts) || pts <= 0) { setPkgError('Points must be a positive number.'); return }
-    setPkgLoading(true)
-    setPkgError(null)
-    const { error: err } = await supabase.from('packages').insert({
-      id: slugify(pkgName.trim()),
-      name: pkgName.trim(),
-      points: pts,
-      color: pkgColor,
-    })
-    if (err) { setPkgError(err.message) }
-    else { setPkgName(''); setPkgPoints(''); setPkgColor('#185FA5'); fetchPackages() }
-    setPkgLoading(false)
-  }
-
-  async function savePackage(pkg) {
-    const pts = parseInt(editFields.points)
-    if (!editFields.name?.trim()) { setPkgError('Name is required.'); return }
-    if (!editFields.points || isNaN(pts) || pts <= 0) { setPkgError('Points must be a positive number.'); return }
-    setPkgError(null)
-    const { error: err } = await supabase.from('packages').update({
-      name: editFields.name.trim(),
-      points: pts,
-      color: editFields.color,
-    }).eq('id', pkg.id)
-    if (err) { setPkgError(err.message) }
-    else { setEditingPkg(null); fetchPackages() }
-  }
-
-  async function deletePackage(pkg) {
-    setDeletingPkg(pkg.id)
-    await supabase.from('packages').delete().eq('id', pkg.id)
-    fetchPackages()
-    setDeletingPkg(null)
-  }
-
   async function addRep() {
     if (!name.trim()) { setError('Name is required.'); return }
     setLoading(true)
@@ -129,10 +105,10 @@ export default function AdminPanel({ currentUser }) {
     const { error: err } = await supabase.from('sales_reps').insert({
       name: name.trim(),
       job_title: title.trim() || null,
-      country: country || null,
+      segment: segment || 'UK Commercial',
     })
     if (err) { setError(err.message) }
-    else { setName(''); setTitle(''); setCountry('UK'); fetchReps() }
+    else { setName(''); setTitle(''); setSegment('UK Commercial'); fetchReps() }
     setLoading(false)
   }
 
@@ -149,20 +125,168 @@ export default function AdminPanel({ currentUser }) {
     const { error: err } = await supabase.from('sales_reps').update({
       name: editRepFields.name.trim(),
       job_title: editRepFields.job_title?.trim() || null,
-      country: editRepFields.country || null,
+      segment: editRepFields.segment || 'UK Commercial',
     }).eq('id', rep.id)
     if (err) { setEditRepError(err.message) }
     else { setEditingRep(null); fetchReps() }
   }
 
+  // Log activity with structured inputs
+  async function logActivity() {
+    if (!selectedRep) { setLogError('Please select a seller.'); return }
+    if (!activityType) { setLogError('Please select an activity type.'); return }
+    
+    setLogLoading(true)
+    setLogError(null)
+
+    const now = new Date()
+    const period = getCurrentPeriod(now)
+    const month = getCurrentMonth(now)
+
+    // Calculate points based on activity type
+    let points = 0
+    let packageId = 'cloud-assessment'
+    let packageName = 'Cloud Assessment'
+    let value = 0
+
+    if (activityType === 'assessment') {
+      points = 100 // FY26 assessment base points
+      if (isNetNew) points += 75 // Net new logo bonus
+    }
+
+    // Add pipeline points
+    const tierInfo = PIPELINE_TIERS.find(t => t.value === pipelineTier)
+    if (tierInfo) {
+      points += tierInfo.points
+      // Set approximate value based on tier
+      if (pipelineTier === '50k-100k') value = 75000
+      else if (pipelineTier === '100k-250k') value = 175000
+      else if (pipelineTier === '250k+') value = 300000
+    }
+
+    const { error: err } = await supabase.from('deals').insert({
+      rep_id: selectedRep,
+      logged_by: currentUser?.id || null,
+      package_id: packageId,
+      package_name: packageName,
+      client_name: null, // No client names for privacy
+      value: value,
+      points_earned: points,
+      period,
+      month,
+      is_net_new: isNetNew,
+      closed_at: now.toISOString(),
+    })
+
+    if (err) {
+      setLogError(err.message)
+    } else {
+      setLogSuccess(true)
+      setSelectedRep('')
+      setActivityType('')
+      setIsNetNew(false)
+      setPipelineTier('none')
+      fetchDeals()
+      setTimeout(() => setLogSuccess(false), 2000)
+    }
+    setLogLoading(false)
+  }
+
   return (
     <div>
-      {/* Manage sales reps */}
-      <h2 style={styles.sectionTitle}>Manage sales reps</h2>
-      <p style={styles.sub}>Add your team members here. They'll appear in the "Log deal" rep selector and on the leaderboard.</p>
+      {/* Log Activity Section - Primary */}
+      <h2 style={styles.sectionTitle}>Log Activity</h2>
+      <p style={styles.sub}>Monthly logging of seller activities. Select a seller and use the checkboxes to record their achievements.</p>
+
+      <div style={styles.logSection}>
+        <div style={styles.logForm}>
+          <div style={styles.formField}>
+            <label style={styles.label}>Select Seller</label>
+            <select
+              style={styles.input}
+              value={selectedRep}
+              onChange={e => { setSelectedRep(e.target.value); setLogError(null) }}
+            >
+              <option value="">Choose a seller...</option>
+              {reps.map(rep => (
+                <option key={rep.id} value={rep.id}>
+                  {SEGMENT_FLAG[rep.segment] || '🌐'} {rep.name} ({rep.segment || 'UK Commercial'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={styles.activitySection}>
+            <label style={styles.label}>Activity Type</label>
+            <div style={styles.checkboxGrid}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="radio"
+                  name="activity"
+                  checked={activityType === 'assessment'}
+                  onChange={() => { setActivityType('assessment'); setLogError(null) }}
+                  style={styles.checkbox}
+                />
+                <span style={styles.checkboxText}>☁️ Cloud Assessment Closed</span>
+                <span style={styles.checkboxPts}>+100 pts</span>
+              </label>
+            </div>
+          </div>
+
+          <div style={styles.activitySection}>
+            <label style={styles.label}>Bonuses (Optional)</label>
+            <div style={styles.checkboxGrid}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={isNetNew}
+                  onChange={e => setIsNetNew(e.target.checked)}
+                  style={styles.checkbox}
+                />
+                <span style={styles.checkboxText}>🎯 Net New Logo</span>
+                <span style={styles.checkboxPts}>+75 pts</span>
+              </label>
+            </div>
+          </div>
+
+          <div style={styles.activitySection}>
+            <label style={styles.label}>Pipeline Tier (S2+)</label>
+            <div style={styles.tierGrid}>
+              {PIPELINE_TIERS.map(tier => (
+                <label key={tier.value} style={styles.tierLabel}>
+                  <input
+                    type="radio"
+                    name="pipeline"
+                    checked={pipelineTier === tier.value}
+                    onChange={() => setPipelineTier(tier.value)}
+                    style={styles.checkbox}
+                  />
+                  <span style={styles.tierText}>{tier.label}</span>
+                  {tier.points > 0 && <span style={styles.checkboxPts}>+{tier.points} pts</span>}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {logError && <div style={styles.error}>{logError}</div>}
+          {logSuccess && <div style={styles.success}>✓ Activity logged successfully!</div>}
+
+          <button
+            style={{ ...styles.logBtn, opacity: logLoading ? 0.7 : 1 }}
+            onClick={logActivity}
+            disabled={logLoading || !selectedRep || !activityType}
+          >
+            {logLoading ? 'Logging...' : 'Log Activity'}
+          </button>
+        </div>
+      </div>
+
+      {/* Manage sellers */}
+      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage Sellers</h2>
+      <p style={styles.sub}>Add and manage your team members. They'll appear in the activity logger and on the leaderboard.</p>
 
       <div style={styles.form}>
-        <div style={{ ...styles.formRow, gridTemplateColumns: '1fr 1fr 140px auto' }}>
+        <div style={{ ...styles.formRow, gridTemplateColumns: '1fr 1fr 180px auto' }}>
           <div style={styles.formField}>
             <label style={styles.label}>Full name</label>
             <input
@@ -184,14 +308,14 @@ export default function AdminPanel({ currentUser }) {
             />
           </div>
           <div style={styles.formField}>
-            <label style={styles.label}>Country</label>
+            <label style={styles.label}>Segment</label>
             <select
               style={styles.input}
-              value={country}
-              onChange={e => setCountry(e.target.value)}
+              value={segment}
+              onChange={e => setSegment(e.target.value)}
             >
-              {COUNTRIES.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
+              {SEGMENTS.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </div>
@@ -202,7 +326,7 @@ export default function AdminPanel({ currentUser }) {
               onClick={addRep}
               disabled={loading}
             >
-              {loading ? 'Adding...' : '+ Add rep'}
+              {loading ? 'Adding...' : '+ Add seller'}
             </button>
           </div>
         </div>
@@ -211,7 +335,7 @@ export default function AdminPanel({ currentUser }) {
 
       <div style={styles.list}>
         {reps.length === 0 ? (
-          <div style={styles.empty}>No reps added yet. Add your first team member above.</div>
+          <div style={styles.empty}>No sellers added yet. Add your first team member above.</div>
         ) : (
           reps.map((rep, i) => {
             const initials = rep.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -239,13 +363,12 @@ export default function AdminPanel({ currentUser }) {
                       onChange={e => setEditRepFields(f => ({ ...f, job_title: e.target.value }))}
                     />
                     <select
-                      style={{ ...styles.input, width: '130px', flexShrink: 0 }}
-                      value={editRepFields.country}
-                      onChange={e => setEditRepFields(f => ({ ...f, country: e.target.value }))}
+                      style={{ ...styles.input, width: '160px', flexShrink: 0 }}
+                      value={editRepFields.segment}
+                      onChange={e => setEditRepFields(f => ({ ...f, segment: e.target.value }))}
                     >
-                      <option value="">No country</option>
-                      {COUNTRIES.map(c => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
+                      {SEGMENTS.map(s => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
                     <button style={styles.approveBtn} onClick={() => saveRep(rep)}>Save</button>
@@ -257,18 +380,15 @@ export default function AdminPanel({ currentUser }) {
                     <div style={styles.repInfo}>
                       <div style={styles.repName}>{rep.name}</div>
                       <div style={styles.repTitle}>
-                        {[rep.job_title, rep.country ? `${COUNTRY_FLAG[rep.country] || ''} ${rep.country}` : null]
+                        {[rep.job_title, rep.segment ? `${SEGMENT_FLAG[rep.segment] || ''} ${rep.segment}` : null]
                           .filter(Boolean).join(' · ')}
                       </div>
-                    </div>
-                    <div style={styles.repMeta}>
-                      <span style={styles.addedDate}>Added {new Date(rep.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
                     </div>
                     <button
                       style={styles.rejectBtn}
                       onClick={() => {
                         setEditingRep(rep.id)
-                        setEditRepFields({ name: rep.name, job_title: rep.job_title || '', country: rep.country || '' })
+                        setEditRepFields({ name: rep.name, job_title: rep.job_title || '', segment: rep.segment || 'UK Commercial' })
                         setEditRepError(null)
                       }}
                     >
@@ -278,7 +398,7 @@ export default function AdminPanel({ currentUser }) {
                       style={{ ...styles.deleteBtn, opacity: deleting === rep.id ? 0.5 : 1 }}
                       onClick={() => deleteRep(rep.id)}
                       disabled={deleting === rep.id}
-                      title="Remove rep"
+                      title="Remove seller"
                     >
                       ✕
                     </button>
@@ -291,128 +411,13 @@ export default function AdminPanel({ currentUser }) {
         {editRepError && <div style={styles.error}>{editRepError}</div>}
       </div>
 
-      {/* Manage packages */}
-      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage packages</h2>
-      <p style={styles.sub}>Create or update packages that appear in the deal logger. Packages used in deals cannot be deleted.</p>
-
-      <div style={styles.form}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 44px auto', gap: '12px', alignItems: 'end' }}>
-          <div style={styles.formField}>
-            <label style={styles.label}>Package name</label>
-            <input
-              style={styles.input}
-              placeholder="e.g. Azure Migration"
-              value={pkgName}
-              onChange={e => setPkgName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addPackage()}
-            />
-          </div>
-          <div style={styles.formField}>
-            <label style={styles.label}>Points</label>
-            <input
-              style={styles.input}
-              type="number"
-              min="1"
-              placeholder="e.g. 300"
-              value={pkgPoints}
-              onChange={e => setPkgPoints(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addPackage()}
-            />
-          </div>
-          <div style={styles.formField}>
-            <label style={styles.label}>Colour</label>
-            <input
-              type="color"
-              style={{ ...styles.input, padding: '3px 4px', height: '38px', cursor: 'pointer' }}
-              value={pkgColor}
-              onChange={e => setPkgColor(e.target.value)}
-            />
-          </div>
-          <div style={styles.formAction}>
-            <label style={{ ...styles.label, visibility: 'hidden' }}>Add</label>
-            <button
-              style={{ ...styles.addBtn, opacity: pkgLoading ? 0.7 : 1 }}
-              onClick={addPackage}
-              disabled={pkgLoading}
-            >
-              {pkgLoading ? 'Adding...' : '+ Add package'}
-            </button>
-          </div>
-        </div>
-        {pkgError && <div style={styles.error}>{pkgError}</div>}
-      </div>
-
-      <div style={styles.list}>
-        {packages.length === 0 ? (
-          <div style={styles.empty}>No packages yet.</div>
-        ) : (
-          packages.map(pkg => {
-            const inUse = (pkgUsage[pkg.id] || 0) > 0
-            const isEditing = editingPkg === pkg.id
-            return (
-              <div key={pkg.id} style={styles.repRow}>
-                {isEditing ? (
-                  <>
-                    <input
-                      style={{ ...styles.input, flex: 1 }}
-                      value={editFields.name}
-                      onChange={e => setEditFields(f => ({ ...f, name: e.target.value }))}
-                    />
-                    <input
-                      style={{ ...styles.input, width: '90px' }}
-                      type="number"
-                      min="1"
-                      value={editFields.points}
-                      onChange={e => setEditFields(f => ({ ...f, points: e.target.value }))}
-                    />
-                    <input
-                      type="color"
-                      style={{ ...styles.input, padding: '3px 4px', width: '48px', height: '36px', cursor: 'pointer', flexShrink: 0 }}
-                      value={editFields.color}
-                      onChange={e => setEditFields(f => ({ ...f, color: e.target.value }))}
-                    />
-                    <button style={styles.approveBtn} onClick={() => savePackage(pkg)}>Save</button>
-                    <button style={styles.rejectBtn} onClick={() => { setEditingPkg(null); setPkgError(null) }}>Cancel</button>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ ...styles.dot, background: pkg.color }} />
-                    <div style={styles.repInfo}>
-                      <div style={styles.repName}>{pkg.name}</div>
-                      <div style={styles.repTitle}>
-                        {pkg.points} pts per close
-                        {inUse ? ` · ${pkgUsage[pkg.id]} deal${pkgUsage[pkg.id] !== 1 ? 's' : ''}` : ''}
-                      </div>
-                    </div>
-                    <button
-                      style={{ ...styles.rejectBtn, marginRight: '4px' }}
-                      onClick={() => { setEditingPkg(pkg.id); setEditFields({ name: pkg.name, points: pkg.points, color: pkg.color }); setPkgError(null) }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      style={{ ...styles.deleteBtn, opacity: (inUse || deletingPkg === pkg.id) ? 0.35 : 1, cursor: inUse ? 'not-allowed' : 'pointer' }}
-                      onClick={() => !inUse && deletePackage(pkg)}
-                      disabled={inUse || deletingPkg === pkg.id}
-                      title={inUse ? 'Cannot delete — package is used in existing deals' : 'Delete package'}
-                    >
-                      ✕
-                    </button>
-                  </>
-                )}
-              </div>
-            )
-          })
-        )}
-      </div>
-
       {/* Manage deals */}
-      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage deals</h2>
-      <p style={styles.sub}>View and edit the 50 most recent deals. Changes update the leaderboard immediately.</p>
+      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage Logged Activities</h2>
+      <p style={styles.sub}>View and edit the 50 most recent activities. Changes update the leaderboard immediately.</p>
 
       <div style={styles.list}>
         {deals.length === 0 ? (
-          <div style={styles.empty}>No deals logged yet.</div>
+          <div style={styles.empty}>No activities logged yet.</div>
         ) : (
           deals.map(deal => (
             <div key={deal.id} style={styles.dealRow}>
@@ -421,9 +426,12 @@ export default function AdminPanel({ currentUser }) {
               </div>
               <div style={styles.repInfo}>
                 <div style={styles.repName}>{deal.sales_reps?.name || '—'}</div>
-                <div style={styles.repTitle}>{deal.package_name} · {deal.client_name || '—'}</div>
+                <div style={styles.repTitle}>
+                  {deal.package_name}
+                  {deal.is_net_new && ' · Net New'}
+                  {deal.value > 0 && ` · £${deal.value >= 1000 ? Math.round(deal.value / 1000) + 'k' : deal.value}`}
+                </div>
               </div>
-              <div style={styles.dealValue}>£{deal.value >= 1000 ? Math.round(deal.value / 1000) + 'k' : deal.value}</div>
               <div style={styles.dealPts}>+{deal.points_earned} pts</div>
               <button
                 style={styles.rejectBtn}
@@ -435,7 +443,7 @@ export default function AdminPanel({ currentUser }) {
                 style={{ ...styles.deleteBtn, opacity: deletingDeal === deal.id ? 0.5 : 1 }}
                 onClick={() => deleteDeal(deal.id)}
                 disabled={deletingDeal === deal.id}
-                title="Delete deal"
+                title="Delete activity"
               >
                 ✕
               </button>
@@ -529,6 +537,15 @@ const styles = {
     padding: '8px 12px',
     fontSize: '13px',
   },
+  success: {
+    marginTop: '10px',
+    background: '#f0fdf4',
+    color: '#166534',
+    border: '1px solid #bbf7d0',
+    borderRadius: 'var(--radius)',
+    padding: '8px 12px',
+    fontSize: '13px',
+  },
   list: {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
@@ -557,8 +574,6 @@ const styles = {
   repInfo: { flex: 1 },
   repName: { fontSize: '14px', fontWeight: '500', color: 'var(--text)' },
   repTitle: { fontSize: '12px', color: 'var(--text3)', marginTop: '1px' },
-  repMeta: { marginRight: '8px' },
-  addedDate: { fontSize: '12px', color: 'var(--text3)' },
   deleteBtn: {
     fontSize: '12px',
     color: 'var(--text3)',
@@ -567,37 +582,6 @@ const styles = {
     cursor: 'pointer',
     padding: '4px 8px',
     borderRadius: '4px',
-  },
-  youTag: {
-    fontSize: '10px',
-    background: 'var(--red-light)',
-    color: 'var(--red)',
-    padding: '1px 6px',
-    borderRadius: '99px',
-    fontWeight: '500',
-  },
-  adminTag: {
-    fontSize: '10px',
-    background: '#eff6ff',
-    color: '#1d4ed8',
-    padding: '1px 6px',
-    borderRadius: '99px',
-    fontWeight: '500',
-  },
-  revokeBtn: {
-    padding: '6px 14px',
-    background: 'none',
-    color: '#b91c1c',
-    border: '1px solid #fecaca',
-    borderRadius: 'var(--radius)',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  dot: {
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
-    flexShrink: 0,
   },
   dealRow: {
     display: 'flex',
@@ -613,20 +597,90 @@ const styles = {
     width: '72px',
     flexShrink: 0,
   },
-  dealValue: {
-    fontSize: '13px',
-    color: 'var(--text2)',
-    whiteSpace: 'nowrap',
-    fontVariantNumeric: 'tabular-nums',
-    minWidth: '52px',
-    textAlign: 'right',
-  },
   dealPts: {
     fontSize: '12px',
     fontWeight: '500',
     color: 'var(--red)',
     whiteSpace: 'nowrap',
-    minWidth: '52px',
+    minWidth: '60px',
     textAlign: 'right',
+  },
+  // Log Activity styles
+  logSection: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '1.5rem',
+    marginBottom: '1rem',
+  },
+  logForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.25rem',
+  },
+  activitySection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  checkboxGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 14px',
+    background: 'var(--surface2)',
+    borderRadius: 'var(--radius)',
+    cursor: 'pointer',
+    transition: 'background 0.15s',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    accentColor: 'var(--red)',
+  },
+  checkboxText: {
+    flex: 1,
+    fontSize: '14px',
+    color: 'var(--text)',
+  },
+  checkboxPts: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: 'var(--red)',
+  },
+  tierGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '8px',
+  },
+  tierLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 12px',
+    background: 'var(--surface2)',
+    borderRadius: 'var(--radius)',
+    cursor: 'pointer',
+    fontSize: '13px',
+  },
+  tierText: {
+    flex: 1,
+    color: 'var(--text)',
+  },
+  logBtn: {
+    padding: '12px 24px',
+    background: 'var(--red)',
+    border: 'none',
+    borderRadius: 'var(--radius)',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: 'white',
+    cursor: 'pointer',
+    alignSelf: 'flex-start',
   },
 }

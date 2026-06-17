@@ -1,10 +1,34 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { getCurrentFYPrefix, getPrevFYPrefix, getPrevFYYear, getCurrentMonth } from '../lib/fiscalYear'
+import { getCurrentFYPrefix, getPrevFYPrefix, getPrevFYYear, getFYYear } from '../lib/fiscalYear'
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' }
 const MEDAL_COLOR = { 1: '#c8961e', 2: '#6b7280', 3: '#92400e' }
-const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
+
+const SEGMENT_FLAG = {
+  'UK Commercial': '🇬🇧',
+  'UK Government': '🇬🇧',
+  'France': '🇫🇷',
+  'Germany': '🇩🇪',
+  'LTS': '🌐',
+}
+
+const SEGMENT_LABELS = {
+  'UK Commercial': 'UK Commercial',
+  'UK Government': 'UK Government',
+  'France': 'FR',
+  'Germany': 'DE',
+  'LTS': 'LTS',
+}
+
+// Badge emojis based on achievements
+const BADGE_ICONS = {
+  quarterStar: '⭐',
+  cloudAce: '☁️',
+  hunter: '🎯',
+  portfolioPro: '📊',
+  fireStreak: '🔥',
+}
 
 function Avatar({ name, avatarUrl, size = 36 }) {
   const initials = name
@@ -40,41 +64,51 @@ function Avatar({ name, avatarUrl, size = 36 }) {
   )
 }
 
-function Badge({ label, color }) {
-  const colors = {
-    red: { bg: '#fef2f2', text: '#b91c1c' },
-    amber: { bg: '#fefce8', text: '#92400e' },
-    green: { bg: '#f0fdf4', text: '#166534' },
-    blue: { bg: '#eff6ff', text: '#1d4ed8' },
-    purple: { bg: '#f5f3ff', text: '#6d28d9' },
-  }
-  const c = colors[color] || colors.blue
-  return (
-    <span style={{
-      background: c.bg, color: c.text,
-      fontSize: '10px', fontWeight: '500',
-      padding: '2px 7px', borderRadius: '99px',
-      whiteSpace: 'nowrap',
-    }}>{label}</span>
-  )
-}
-
-function getBadges(rep) {
+function calculateBadges(rep, allDeals) {
   const badges = []
-  if (rep.deals_count >= 5) badges.push({ label: 'cloud ace', color: 'blue' })
-  if (rep.streak >= 5) badges.push({ label: `streak ×${rep.streak}`, color: 'red' })
-  if (rep.is_new_this_quarter) badges.push({ label: 'rising star', color: 'green' })
-  if (rep.total_revenue >= 500000) badges.push({ label: 'enterprise', color: 'purple' })
+  const repDeals = allDeals.filter(d => d.rep_id === rep.id && d.package_id === 'cloud-assessment')
+  
+  // Fire Streak: 2+ deals in same quarter
+  const quarterCounts = {}
+  repDeals.forEach(d => {
+    const quarter = d.period
+    quarterCounts[quarter] = (quarterCounts[quarter] || 0) + 1
+  })
+  if (Object.values(quarterCounts).some(c => c >= 2)) {
+    badges.push(BADGE_ICONS.fireStreak)
+  }
+  
+  // Portfolio Pro: Multiple assessments same account
+  const accountCounts = {}
+  repDeals.forEach(d => {
+    const account = d.account_id || d.client_name || 'unknown'
+    accountCounts[account] = (accountCounts[account] || 0) + 1
+  })
+  if (Object.values(accountCounts).some(c => c >= 2)) {
+    badges.push(BADGE_ICONS.portfolioPro)
+  }
+  
+  // Hunter: Net new logo
+  if (allDeals.filter(d => d.rep_id === rep.id && d.is_net_new).length > 0) {
+    badges.push(BADGE_ICONS.hunter)
+  }
+  
   return badges
 }
 
 export default function Leaderboard({ currentUser }) {
   const [reps, setReps] = useState([])
+  const [allDeals, setAllDeals] = useState([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('fy')
+  const [showAll, setShowAll] = useState(false)
+  
+  const INITIAL_DISPLAY = 8
 
   async function fetchLeaderboard() {
     setLoading(true)
+    const currentFY = getFYYear()
+    const prevFY = getPrevFYYear()
 
     // First fetch all sales_reps
     const { data: salesReps } = await supabase
@@ -88,72 +122,56 @@ export default function Leaderboard({ currentUser }) {
       return
     }
 
-    // Then fetch deals with optional period filter
-    let query = supabase.from('deals').select('rep_id, value, points_earned, period, month')
+    // Fetch all deals (we need all for badge calculation)
+    const { data: allDealsData } = await supabase.from('deals').select('*')
+    setAllDeals(allDealsData || [])
 
+    // Filter deals based on period selection
+    let filteredDeals = allDealsData || []
     if (period === 'fy') {
-      query = query.like('period', getCurrentFYPrefix() + '%')
+      filteredDeals = filteredDeals.filter(d => d.period?.startsWith(`FY${currentFY}-`))
     } else if (period === 'prev-fy') {
-      query = query.like('period', getPrevFYPrefix() + '%')
-    } else if (period === 'month') {
-      query = query.eq('month', getCurrentMonth())
+      filteredDeals = filteredDeals.filter(d => d.period?.startsWith(`FY${prevFY}-`))
     }
-
-    const { data: deals } = await query
 
     // Aggregate deals per rep
     const dealMap = {}
-    if (deals) {
-      deals.forEach(d => {
-        if (!dealMap[d.rep_id]) dealMap[d.rep_id] = { deals_count: 0, total_revenue: 0, points: 0 }
-        dealMap[d.rep_id].deals_count += 1
-        dealMap[d.rep_id].total_revenue += d.value || 0
-        dealMap[d.rep_id].points += d.points_earned || 0
-      })
-    }
+    filteredDeals.forEach(d => {
+      if (!dealMap[d.rep_id]) dealMap[d.rep_id] = { 
+        assessments: 0, 
+        pipeline: 0, 
+        points: 0 
+      }
+      // Count cloud assessments only for deals column
+      if (d.package_id === 'cloud-assessment') {
+        dealMap[d.rep_id].assessments += 1
+      }
+      // Sum pipeline (all deal values)
+      dealMap[d.rep_id].pipeline += d.value || 0
+      // Sum points
+      dealMap[d.rep_id].points += d.points_earned || 0
+    })
 
-    // Merge reps with their stats, sort by points
+    // Merge reps with their stats
     const merged = salesReps.map(rep => ({
       id: rep.id,
       name: rep.name,
       avatar_url: rep.avatar_url,
-      job_title: rep.job_title,
-      country: rep.country,
-      deals_count: dealMap[rep.id]?.deals_count || 0,
-      total_revenue: dealMap[rep.id]?.total_revenue || 0,
+      segment: rep.segment || 'UK Commercial',
+      assessments: dealMap[rep.id]?.assessments || 0,
+      pipeline: dealMap[rep.id]?.pipeline || 0,
       points: dealMap[rep.id]?.points || 0,
-      streak: 0,
-      is_new_this_quarter: false,
-    })).sort((a, b) => b.points - a.points)
+      badges: calculateBadges(rep, allDealsData || []),
+    }))
+
+    // Sort: by points descending, then alphabetically for those with 0 points
+    merged.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points
+      return a.name.localeCompare(b.name)
+    })
 
     setReps(merged)
     setLoading(false)
-  }
-
-  function getCurrentMonth() { return new Date().toISOString().slice(0, 7) }
-
-  function aggregateDeals(deals) {
-    const map = {}
-    deals.forEach(d => {
-      const rep = d.reps
-      if (!rep) return
-      if (!map[rep.id]) {
-        map[rep.id] = {
-          id: rep.id,
-          name: rep.name,
-          avatar_url: rep.avatar_url,
-          deals_count: 0,
-          total_revenue: 0,
-          points: 0,
-          streak: 0,
-          is_new_this_quarter: false,
-        }
-      }
-      map[rep.id].deals_count += 1
-      map[rep.id].total_revenue += d.value || 0
-      map[rep.id].points += d.points_earned || 0
-    })
-    return Object.values(map).sort((a, b) => b.points - a.points)
   }
 
   useEffect(() => {
@@ -171,19 +189,30 @@ export default function Leaderboard({ currentUser }) {
   }, [period])
 
   const maxPoints = reps[0]?.points || 1
+  const displayedReps = showAll ? reps : reps.slice(0, INITIAL_DISPLAY)
+  const hasMore = reps.length > INITIAL_DISPLAY
+
+  const formatPipeline = (val) => {
+    if (val >= 1000000) return '£' + (val / 1000000).toFixed(1) + 'M'
+    if (val >= 1000) return '£' + Math.round(val / 1000) + 'k'
+    return '£' + val
+  }
+
+  // Check if we're viewing FY25 (previous year) - points should be greyed out
+  const isPrevFY = period === 'prev-fy'
 
   return (
     <div>
       <div style={styles.toolbar}>
         <h2 style={styles.sectionTitle}>Leaderboard</h2>
         <div style={styles.toggle}>
-          {['fy', 'prev-fy', 'month', 'all'].map(p => (
+          {['fy', 'prev-fy'].map(p => (
             <button
               key={p}
               style={{ ...styles.toggleBtn, ...(period === p ? styles.toggleActive : {}) }}
               onClick={() => setPeriod(p)}
             >
-              {p === 'fy' ? 'This FY' : p === 'prev-fy' ? `FY${getPrevFYYear()}` : p === 'month' ? 'This month' : 'All time'}
+              {p === 'fy' ? `FY${getFYYear()}` : `FY${getPrevFYYear()}`}
             </button>
           ))}
         </div>
@@ -192,75 +221,84 @@ export default function Leaderboard({ currentUser }) {
       {loading ? (
         <div style={styles.loading}>Loading...</div>
       ) : reps.length === 0 ? (
-        <div style={styles.empty}>No deals logged yet. Be the first! 🚀</div>
+        <div style={styles.empty}>No sellers added yet. Add sellers in the Admin panel. 🚀</div>
       ) : (
-        <div style={styles.table}>
-          <div style={styles.tableHeader}>
-            <span style={{gridColumn: '1'}}>Rank</span>
-            <span style={{gridColumn: '2'}}>Rep</span>
-            <span style={{gridColumn: '3', textAlign: 'center'}}>Deals</span>
-            <span style={{gridColumn: '4', textAlign: 'right'}}>Revenue</span>
-            <span style={{gridColumn: '5', textAlign: 'right'}}>Points</span>
-          </div>
+        <>
+          <div style={styles.table}>
+            <div style={styles.tableHeader}>
+              <span style={{gridColumn: '1'}}>Rank</span>
+              <span style={{gridColumn: '2'}}>Seller</span>
+              <span style={{gridColumn: '3', textAlign: 'center'}}>Deals</span>
+              <span style={{gridColumn: '4', textAlign: 'right'}}>Pipeline (S2+)</span>
+              <span style={{gridColumn: '5', textAlign: 'right', opacity: isPrevFY ? 0.4 : 1}}>Points</span>
+            </div>
 
-          {reps.map((rep, i) => {
-            const rank = i + 1
-            const isMe = currentUser?.id === rep.id
-            const badges = getBadges(rep)
-            const barWidth = Math.round((rep.points / maxPoints) * 100)
+            {displayedReps.map((rep, i) => {
+              const rank = i + 1
+              const isMe = currentUser?.id === rep.id
+              const barWidth = Math.round((rep.points / maxPoints) * 100)
 
-            return (
-              <div
-                key={rep.id}
-                style={{
-                  ...styles.row,
-                  ...(isMe ? styles.rowMe : {}),
-                }}
-              >
-                <div style={{ ...styles.rank, color: MEDAL_COLOR[rank] || 'var(--text3)' }}>
-                  {MEDAL[rank] || rank}
-                </div>
+              return (
+                <div
+                  key={rep.id}
+                  style={{
+                    ...styles.row,
+                    ...(isMe ? styles.rowMe : {}),
+                  }}
+                >
+                  <div style={{ ...styles.rank, color: MEDAL_COLOR[rank] || 'var(--text3)' }}>
+                    {MEDAL[rank] || rank}
+                  </div>
 
-                <div style={styles.person}>
-                  <Avatar name={rep.name} avatarUrl={rep.avatar_url} />
-                  <div>
-                    <div style={styles.name}>
-                      {rep.name}
-                      {isMe && <span style={styles.youBadge}>you</span>}
-                      {rep.country && COUNTRY_FLAG[rep.country] && (
-                        <span title={rep.country} style={{ fontSize: '14px', lineHeight: 1 }}>
-                          {COUNTRY_FLAG[rep.country]}
+                  <div style={styles.person}>
+                    <Avatar name={rep.name} avatarUrl={rep.avatar_url} />
+                    <div>
+                      <div style={styles.name}>
+                        {rep.name}
+                        {isMe && <span style={styles.youBadge}>you</span>}
+                        <span title={rep.segment} style={{ fontSize: '14px', lineHeight: 1, marginLeft: '4px' }}>
+                          {SEGMENT_FLAG[rep.segment] || '🌐'}
                         </span>
-                      )}
+                        <span style={styles.segmentLabel}>{SEGMENT_LABELS[rep.segment] || rep.segment}</span>
+                        {rep.badges.length > 0 && (
+                          <span style={styles.badgeIcons}>
+                            {rep.badges.map((b, idx) => (
+                              <span key={idx} style={styles.badgeIcon}>{b}</span>
+                            ))}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {badges.length > 0 && (
-                      <div style={styles.badges}>
-                        {badges.map(b => <Badge key={b.label} {...b} />)}
+                  </div>
+
+                  <div style={styles.deals}>{rep.assessments}</div>
+
+                  <div style={styles.pipeline}>
+                    {formatPipeline(rep.pipeline)}
+                  </div>
+
+                  <div style={{ ...styles.pointsCell, opacity: isPrevFY ? 0.4 : 1 }}>
+                    <div style={styles.pts}>{rep.points.toLocaleString()}</div>
+                    {!isPrevFY && (
+                      <div style={styles.barWrap}>
+                        <div style={{ ...styles.bar, width: `${barWidth}%` }} />
                       </div>
                     )}
                   </div>
                 </div>
+              )
+            })}
+          </div>
 
-                <div style={styles.deals}>{rep.deals_count}</div>
-
-                <div style={styles.revenue}>
-                  £{rep.total_revenue >= 1000000
-                    ? (rep.total_revenue / 1000000).toFixed(1) + 'M'
-                    : rep.total_revenue >= 1000
-                    ? Math.round(rep.total_revenue / 1000) + 'k'
-                    : rep.total_revenue}
-                </div>
-
-                <div style={styles.pointsCell}>
-                  <div style={styles.pts}>{rep.points.toLocaleString()}</div>
-                  <div style={styles.barWrap}>
-                    <div style={{ ...styles.bar, width: `${barWidth}%` }} />
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+          {hasMore && (
+            <button
+              style={styles.seeMoreBtn}
+              onClick={() => setShowAll(!showAll)}
+            >
+              {showAll ? 'Show less ▲' : `See more (${reps.length - INITIAL_DISPLAY} more) ▼`}
+            </button>
+          )}
+        </>
       )}
     </div>
   )
@@ -312,7 +350,7 @@ const styles = {
   },
   tableHeader: {
     display: 'grid',
-    gridTemplateColumns: '44px 1fr 70px 90px 110px',
+    gridTemplateColumns: '44px 1fr 70px 100px 110px',
     gap: '8px',
     padding: '10px 16px',
     background: 'var(--surface2)',
@@ -324,7 +362,7 @@ const styles = {
   },
   row: {
     display: 'grid',
-    gridTemplateColumns: '44px 1fr 70px 90px 110px',
+    gridTemplateColumns: '44px 1fr 70px 100px 110px',
     gap: '8px',
     padding: '12px 16px',
     alignItems: 'center',
@@ -352,7 +390,8 @@ const styles = {
     color: 'var(--text)',
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: '4px',
+    flexWrap: 'wrap',
   },
   youBadge: {
     fontSize: '10px',
@@ -362,11 +401,22 @@ const styles = {
     borderRadius: '99px',
     fontWeight: '500',
   },
-  badges: {
-    display: 'flex',
-    gap: '4px',
-    marginTop: '3px',
-    flexWrap: 'wrap',
+  segmentLabel: {
+    fontSize: '9px',
+    background: 'var(--surface2)',
+    color: 'var(--text3)',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '500',
+    marginLeft: '2px',
+  },
+  badgeIcons: {
+    display: 'inline-flex',
+    gap: '2px',
+    marginLeft: '4px',
+  },
+  badgeIcon: {
+    fontSize: '12px',
   },
   deals: {
     fontSize: '14px',
@@ -374,7 +424,7 @@ const styles = {
     textAlign: 'center',
     fontVariantNumeric: 'tabular-nums',
   },
-  revenue: {
+  pipeline: {
     fontSize: '13px',
     color: 'var(--text2)',
     textAlign: 'right',
@@ -399,5 +449,18 @@ const styles = {
     borderRadius: '2px',
     opacity: 0.6,
     transition: 'width 0.5s ease',
+  },
+  seeMoreBtn: {
+    width: '100%',
+    padding: '12px',
+    marginTop: '-1px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderTop: 'none',
+    borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
+    fontSize: '13px',
+    color: 'var(--text2)',
+    cursor: 'pointer',
+    fontWeight: '500',
   },
 }

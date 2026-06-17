@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sales Arena — User Manual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', Arial, sans-serif;
+    font-size: 13px;
+    color: #1a1918;
+    background: #fff;
+    line-height: 1.6;
+  }
+
+  /* COVER PAGE */
+  .cover {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px;
+    background: linear-gradient(135deg, #1a1918 0%, #2d2c2a 100%);
+    page-break-after: always;
+  }
+  .cover-logo {
+    width: 52px; height: 52px;
+    background: #d32927;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 700; color: white;
+    margin-bottom: 32px;
+  }
+  .cover h1 {
+    font-size: 42px; font-weight: 700;
+    color: #ffffff;
+    line-height: 1.15;
+    margin-bottom: 12px;
+  }
+  .cover h1 span { color: #d32927; }
+  .cover p {
+    font-size: 16px; color: #9c9a96;
+    margin-bottom: 48px;
+    max-width: 420px;
+    line-height: 1.7;
+  }
+  .cover-meta {
+    font-size: 12px; color: #5c5a56;
+    border-top: 1px solid #2d2c2a;
+    padding-top: 24px;
+    width: 100%;
+  }
+  .cover-meta span { margin-right: 32px; }
+
+  /* MAIN CONTENT */
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 60px;
+  }
+
+  /* TOC */
+  .toc-page { page-break-after: always; }
+  .toc h2 { font-size: 22px; font-weight: 700; margin-bottom: 28px; color: #1a1918; }
+  .toc-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px dotted #e5e4e1;
+    font-size: 14px;
+  }
+  .toc-num { font-weight: 600; color: #d32927; min-width: 24px; }
+  .toc-label { flex: 1; color: #1a1918; }
+  .toc-sub {
+    padding: 4px 0 4px 32px;
+    font-size: 12px;
+    color: #5c5a56;
+    border-bottom: 1px dotted #f0eeeb;
+  }
+  .toc-sub-num { min-width: 24px; color: #9c9a96; font-size: 11px; }
+
+  /* SECTIONS */
+  .section { page-break-before: always; padding-top: 8px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #f0eeeb;
+  }
+  .section-num {
+    width: 36px; height: 36px;
+    background: #d32927;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: white;
+    flex-shrink: 0;
+  }
+  .section h2 { font-size: 22px; font-weight: 700; color: #1a1918; }
+
+  h3 {
+    font-size: 15px; font-weight: 600;
+    color: #1a1918;
+    margin: 28px 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  h3::before {
+    content: '';
+    display: inline-block;
+    width: 3px; height: 15px;
+    background: #d32927;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  p { margin-bottom: 12px; color: #3d3c3a; }
+
+  ul { margin: 8px 0 16px 0; padding-left: 0; list-style: none; }
+  ul li {
+    padding: 5px 0 5px 20px;
+    position: relative;
+    color: #3d3c3a;
+    font-size: 13px;
+  }
+  ul li::before {
+    content: '–';
+    position: absolute; left: 0;
+    color: #d32927; font-weight: 600;
+  }
+
+  /* STEP LIST */
+  .steps { counter-reset: step; margin: 12px 0 20px; padding-left: 0; list-style: none; }
+  .steps li {
+    counter-increment: step;
+    padding: 10px 12px 10px 44px;
+    position: relative;
+    margin-bottom: 8px;
+    background: #fafaf8;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #3d3c3a;
+    border: 1px solid #f0eeeb;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 22px; height: 22px;
+    background: #d32927; color: white;
+    border-radius: 50%;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    line-height: 22px;
+  }
+
+  /* ROLE CARDS */
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 16px 0 24px; }
+  .role-card {
+    border: 1px solid #e8e6e2;
+    border-radius: 10px;
+    padding: 16px;
+    background: #fafaf8;
+  }
+  .role-card .role-title {
+    font-size: 13px; font-weight: 600; color: #1a1918;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .role-badge {
+    font-size: 9px; font-weight: 600;
+    padding: 2px 6px; border-radius: 99px;
+  }
+  .badge-pending { background: #fef9c3; color: #854d0e; }
+  .badge-user { background: #f0fdf4; color: #166534; }
+  .badge-admin { background: #eff6ff; color: #1d4ed8; }
+  .role-card ul { margin: 0; }
+  .role-card ul li { font-size: 11.5px; padding: 3px 0 3px 16px; }
+
+  /* INFO BOX */
+  .info-box {
+    background: #fef2f2;
+    border-left: 3px solid #d32927;
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 12.5px;
+    color: #3d3c3a;
+  }
+  .info-box strong { color: #d32927; }
+
+  .tip-box {
+    background: #f0fdf4;
+    border-left: 3px solid #166534;
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 12.5px;
+    color: #3d3c3a;
+  }
+  .tip-box strong { color: #166534; }
+
+  /* BADGE PILLS */
+  .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    border-radius: 99px;
+    font-size: 11.5px; font-weight: 500;
+    border: 1px solid;
+  }
+  .pill-blue  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .pill-red   { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .pill-green { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  .pill-purple{ background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+  .pill-amber { background: #fefce8; color: #92400e; border-color: #fde68a; }
+
+  /* TAB OVERVIEW TABLE */
+  .tab-table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 12.5px; }
+  .tab-table th {
+    background: #1a1918; color: white;
+    padding: 9px 12px; text-align: left; font-weight: 600;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .tab-table th:first-child { border-radius: 8px 0 0 0; }
+  .tab-table th:last-child { border-radius: 0 8px 0 0; }
+  .tab-table td { padding: 9px 12px; border-bottom: 1px solid #f0eeeb; color: #3d3c3a; vertical-align: top; }
+  .tab-table tr:last-child td { border-bottom: none; }
+  .tab-table tr:nth-child(even) td { background: #fafaf8; }
+  .access-all { color: #166534; font-weight: 500; font-size: 11px; }
+  .access-admin { color: #1d4ed8; font-weight: 500; font-size: 11px; }
+
+  /* FOOTER */
+  @page { margin: 0; }
+  .page-footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 60px;
+    font-size: 10px; color: #9c9a96;
+    border-top: 1px solid #f0eeeb;
+    background: white;
+  }
+
+  @media print {
+    .cover { page-break-after: always; }
+    .section { page-break-before: always; }
+    .toc-page { page-break-after: always; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-logo">H</div>
+  <h1>Sales Arena<br/><span>User Manual</span></h1>
+  <p>A complete guide to using the Hitachi Solutions Sales Arena — the gamified sales leaderboard that tracks deals, points, and team performance in real time.</p>
+  <div class="cover-meta">
+    <span>Hitachi Solutions</span>
+    <span>Version 1.0</span>
+    <span>May 2026</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc toc-page">
+    <h2>Contents</h2>
+    <div class="toc-item"><span class="toc-num">1</span><span class="toc-label">Overview</span></div>
+    <div class="toc-item"><span class="toc-num">2</span><span class="toc-label">Getting Started</span></div>
+    <div class="toc-sub"><span class="toc-sub-num">2.1</span> Sign Up</div>
+    <div class="toc-sub"><span class="toc-sub-num">2.2</span> Sign In</div>
+    <div class="toc-item"><span class="toc-num">3</span><span class="toc-label">User Roles</span></div>
+    <div class="toc-item"><span class="toc-num">4</span><span class="toc-label">App Navigation</span></div>
+    <div class="toc-item"><span class="toc-num">5</span><span class="toc-label">Leaderboard</span></div>
+    <div class="toc-sub"><span class="toc-sub-num">5.1</span> Filtering by Period</div>
+    <div class="toc-sub"><span class="toc-sub-num">5.2</span> Achievement Badges</div>
+    <div class="toc-sub"><span class="toc-sub-num">5.3</span> Activity Feed</div>
+    <div class="toc-item"><span class="toc-num">6</span><span class="toc-label">Logging a Deal</span></div>
+    <div class="toc-item"><span class="toc-num">7</span><span class="toc-label">Packages</span></div>
+    <div class="toc-item"><span class="toc-num">8</span><span class="toc-label">Admin Panel</span></div>
+    <div class="toc-sub"><span class="toc-sub-num">8.1</span> Manage Sales Reps</div>
+    <div class="toc-sub"><span class="toc-sub-num">8.2</span> Manage Packages</div>
+    <div class="toc-sub"><span class="toc-sub-num">8.3</span> Manage Deals</div>
+    <div class="toc-item"><span class="toc-num">9</span><span class="toc-label">App Admin Panel</span></div>
+    <div class="toc-sub"><span class="toc-sub-num">9.1</span> Pending Approvals</div>
+    <div class="toc-sub"><span class="toc-sub-num">9.2</span> Active Users</div>
+  </div>
+
+  <!-- SECTION 1: OVERVIEW -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <h2>Overview</h2>
+    </div>
+    <p>Sales Arena is a real-time gamified leaderboard for the Hitachi Solutions sales team. It lets the team log closed deals, earn points for different package types, and compete on a live leaderboard — all within a clean, simple web interface.</p>
+
+    <table class="tab-table" style="margin-top:20px">
+      <tr><th>Tab</th><th>Who can access</th><th>Purpose</th></tr>
+      <tr><td><strong>Leaderboard</strong></td><td><span class="access-all">All users</span></td><td>View rankings, points, revenue and badges</td></tr>
+      <tr><td><strong>Packages</strong></td><td><span class="access-all">All users</span></td><td>Browse available packages and their point values</td></tr>
+      <tr><td><strong>Admin</strong></td><td><span class="access-all">All approved users</span></td><td>Manage sales reps, packages and deals</td></tr>
+      <tr><td><strong>App Admin</strong></td><td><span class="access-admin">Superusers only</span></td><td>Manage user access, approvals and admin rights</td></tr>
+    </table>
+
+    <div class="info-box"><strong>Real-time:</strong> The leaderboard and activity feed update instantly when a deal is logged — no page refresh needed.</div>
+  </div>
+
+  <!-- SECTION 2: GETTING STARTED -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <h2>Getting Started</h2>
+    </div>
+
+    <h3>2.1 Sign Up</h3>
+    <p>Access is restricted to Hitachi Solutions email addresses. To request access:</p>
+    <ol class="steps">
+      <li>Go to the Sales Arena URL provided by your admin</li>
+      <li>Click <strong>Sign up</strong> on the login page</li>
+      <li>Enter your name and company email address (hitachisolutions.com or hsdyn.com)</li>
+      <li>Submit — your account will be created but access is pending approval</li>
+      <li>An App Admin will review and approve your request</li>
+      <li>Once approved, sign in to access the app</li>
+    </ol>
+    <div class="tip-box"><strong>Note:</strong> You will not be able to access the app until an App Admin approves your account. Contact your admin if approval is taking longer than expected.</div>
+
+    <h3>2.2 Sign In</h3>
+    <p>Once your account is approved, visit the Sales Arena URL and sign in with your email and password. You will be taken straight to the Leaderboard.</p>
+  </div>
+
+  <!-- SECTION 3: USER ROLES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <h2>User Roles</h2>
+    </div>
+    <p>There are three access levels in Sales Arena:</p>
+    <div class="role-grid">
+      <div class="role-card">
+        <div class="role-title"><span class="role-badge badge-pending">Pending</span></div>
+        <ul>
+          <li>Signed up but not yet approved</li>
+          <li>Cannot access the app</li>
+          <li>Waiting for App Admin review</li>
+        </ul>
+      </div>
+      <div class="role-card">
+        <div class="role-title"><span class="role-badge badge-user">Approved User</span></div>
+        <ul>
+          <li>Full leaderboard access</li>
+          <li>Can log deals</li>
+          <li>Can manage reps, packages and deals (Admin tab)</li>
+        </ul>
+      </div>
+      <div class="role-card">
+        <div class="role-title"><span class="role-badge badge-admin">App Admin</span></div>
+        <ul>
+          <li>Everything above</li>
+          <li>App Admin tab access</li>
+          <li>Approve / reject users</li>
+          <li>Grant or revoke admin rights</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: NAVIGATION -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <h2>App Navigation</h2>
+    </div>
+    <p>The top navigation bar is always visible and contains the following elements:</p>
+    <ul>
+      <li><strong>H logo + Sales Arena</strong> — branding, shows the current fiscal year period</li>
+      <li><strong>+ Log deal</strong> — red button (top right) to open the deal logging form</li>
+      <li><strong>Your initials</strong> — shows your account initial</li>
+      <li><strong>Sign out</strong> — logs you out of the app</li>
+    </ul>
+    <p>Below the header, four stats cards show a live summary: <strong>Deals Closed</strong>, <strong>Top Earner</strong>, <strong>Revenue Unlocked</strong>, and <strong>Days Remaining</strong> in the current fiscal year.</p>
+    <p>Tab navigation sits below the stats bar — click any tab to switch views.</p>
+  </div>
+
+  <!-- SECTION 5: LEADERBOARD -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <h2>Leaderboard</h2>
+    </div>
+    <p>The Leaderboard ranks all sales reps by points earned. Each row shows the rep's rank, name, country flag, achievement badges, number of deals closed, total revenue, and a points bar.</p>
+
+    <h3>5.1 Filtering by Period</h3>
+    <p>Use the toggle buttons in the top-right of the leaderboard to filter by period:</p>
+    <ul>
+      <li><strong>This FY</strong> — current financial year (April to March)</li>
+      <li><strong>Prev FY</strong> — previous financial year</li>
+      <li><strong>This Month</strong> — current calendar month only</li>
+      <li><strong>All Time</strong> — every deal ever logged</li>
+    </ul>
+
+    <h3>5.2 Achievement Badges</h3>
+    <p>Reps automatically earn badges based on their performance. Badges appear beneath their name on the leaderboard:</p>
+    <div class="badge-row">
+      <span class="pill pill-blue">cloud ace</span>
+      <span class="pill pill-red">streak x5</span>
+      <span class="pill pill-green">rising star</span>
+      <span class="pill pill-purple">enterprise</span>
+    </div>
+    <ul>
+      <li><strong>Cloud Ace</strong> — 5 or more deals closed</li>
+      <li><strong>Streak x N</strong> — consecutive deal streak of 5 or more</li>
+      <li><strong>Rising Star</strong> — new rep with a deal this quarter</li>
+      <li><strong>Enterprise</strong> — £500,000 or more in total revenue</li>
+    </ul>
+
+    <h3>5.3 Activity Feed</h3>
+    <p>Below the leaderboard, the Activity Feed shows a live stream of the most recently logged deals — including the rep's name, package, client, and points earned. It updates in real time whenever a new deal is submitted anywhere in the app.</p>
+  </div>
+
+  <!-- SECTION 6: LOG A DEAL -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <h2>Logging a Deal</h2>
+    </div>
+    <p>Any approved user can log a deal. Click the <strong>+ Log deal</strong> button in the top-right corner of the app to open the form.</p>
+
+    <ol class="steps">
+      <li>Select the <strong>Sales Rep</strong> who closed the deal from the dropdown</li>
+      <li>Select the <strong>Package</strong> — each option shows the point value it awards</li>
+      <li>Enter the <strong>Client Name</strong> (e.g. HSBC, NHS Trust, Rolls Royce)</li>
+      <li>Enter the <strong>Deal Value</strong> in pounds (£)</li>
+      <li>Click <strong>Log deal</strong> to submit</li>
+    </ol>
+
+    <p>On success, a confirmation screen shows the points awarded. The leaderboard and activity feed update instantly. The modal closes automatically after a moment.</p>
+
+    <div class="tip-box"><strong>Tip:</strong> Points are calculated automatically based on the package selected. Different packages award different point amounts — check the Packages tab for current values.</div>
+    <div class="info-box"><strong>Note:</strong> Deal value must be greater than zero. All fields are required.</div>
+  </div>
+
+  <!-- SECTION 7: PACKAGES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <h2>Packages</h2>
+    </div>
+    <p>The <strong>Packages</strong> tab shows all available deal packages with their associated point values and colour coding. Each package represents a type of solution sold.</p>
+    <p>Packages are managed in the Admin tab. Only packages that have no associated deals can be deleted — packages already linked to existing deals are protected.</p>
+    <p>When logging a deal, the package selection determines how many points the rep earns for that deal.</p>
+  </div>
+
+  <!-- SECTION 8: ADMIN PANEL -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <h2>Admin Panel</h2>
+    </div>
+    <p>The <strong>Admin</strong> tab is available to all approved users and contains three management sections.</p>
+
+    <h3>8.1 Manage Sales Reps</h3>
+    <p>Add and manage the team members who appear on the leaderboard and in the Log Deal selector.</p>
+    <ul>
+      <li><strong>Add a rep</strong> — enter full name, job title (optional), and country (UK, France, or Germany), then click <strong>+ Add rep</strong></li>
+      <li><strong>Edit a rep</strong> — click <strong>Edit</strong> on any row to update their name, job title, or country inline, then click <strong>Save</strong></li>
+      <li><strong>Remove a rep</strong> — click the <strong>✕</strong> button to permanently remove them</li>
+    </ul>
+    <div class="info-box"><strong>Note:</strong> Sales reps are separate from login accounts. A sales rep entry represents the team member tracked on the leaderboard. Login accounts are managed separately in the App Admin tab.</div>
+
+    <h3>8.2 Manage Packages</h3>
+    <p>Create and maintain the packages available when logging deals.</p>
+    <ul>
+      <li><strong>Add a package</strong> — enter a name, point value, and choose a colour, then click <strong>+ Add package</strong></li>
+      <li><strong>Edit a package</strong> — click <strong>Edit</strong> to change name, points, or colour inline</li>
+      <li><strong>Delete a package</strong> — only possible if no deals have been logged against it. The delete button is greyed out for packages in use</li>
+    </ul>
+
+    <h3>8.3 Manage Deals</h3>
+    <p>View and edit the 50 most recent deals. Each row shows the deal date, rep name, package, client, value, and points earned.</p>
+    <ul>
+      <li><strong>Edit a deal</strong> — click <strong>Edit</strong> to open the edit form. You can change the rep, package, client name, deal value, and date closed. Points are recalculated automatically when you change the package</li>
+      <li><strong>Delete a deal</strong> — click <strong>✕</strong> to permanently remove the deal. This updates the leaderboard immediately</li>
+    </ul>
+    <div class="info-box"><strong>Note:</strong> Deleting a deal permanently removes it and reduces the rep's points total accordingly. This action cannot be undone.</div>
+  </div>
+
+  <!-- SECTION 9: APP ADMIN -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">9</div>
+      <h2>App Admin Panel</h2>
+    </div>
+    <p>The <strong>App Admin</strong> tab is only visible to superusers. It controls who has access to Sales Arena and what level of access they have.</p>
+
+    <h3>9.1 Pending Approvals</h3>
+    <p>When a new user signs up, they appear here until approved or rejected.</p>
+    <ul>
+      <li><strong>Approve</strong> — grants the user access. They can immediately sign in and use the app</li>
+      <li><strong>Reject</strong> — permanently removes their account. They would need to sign up again if re-invited</li>
+    </ul>
+    <div class="tip-box"><strong>Tip:</strong> New sign-up requests do not send automatic email notifications. Check this tab periodically or ask new users to let you know when they have signed up.</div>
+
+    <h3>9.2 Active Users</h3>
+    <p>Shows all users who currently have access to Sales Arena. Each row displays their name, email, join date, and any <strong>app admin</strong> badge if applicable.</p>
+    <ul>
+      <li><strong>Make admin / Remove admin</strong> — grants or revokes App Admin (superuser) rights. Admins gain access to this App Admin tab</li>
+      <li><strong>Revoke</strong> — removes access entirely. The user is moved back to the pending queue and loses all rights. Their account data is retained</li>
+    </ul>
+    <div class="info-box"><strong>Safety:</strong> You cannot modify your own account from this panel. Your own row has no action buttons, preventing accidental self-lockout.</div>
+  </div>
+
+</div>
+
+<div class="page-footer">
+  <span>Hitachi Solutions — Sales Arena</span>
+  <span>User Manual v1.0 · May 2026</span>
+</div>
+
+</body>
+</html>
