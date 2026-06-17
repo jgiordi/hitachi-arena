@@ -1,53 +1,86 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { getCurrentPeriod } from '../lib/fiscalYear'
+import { getCurrentPeriod, getCurrentMonth } from '../lib/fiscalYear'
 
-const COUNTRY_FLAG = { UK: '🇬🇧', France: '🇫🇷', Germany: '🇩🇪' }
+const SEGMENT_FLAG = { 
+  'UK Commercial': '🇬🇧', 
+  'UK Government': '🇬🇧', 
+  'France': '🇫🇷', 
+  'Germany': '🇩🇪',
+  'LTS': '🌐',
+}
+
+// Pipeline tier options
+const PIPELINE_TIERS = [
+  { value: 'none', label: 'No pipeline', points: 0 },
+  { value: '50k-100k', label: '£50k – £100k', points: 25 },
+  { value: '100k-250k', label: '£100k – £250k', points: 50 },
+  { value: '250k+', label: '£250k+', points: 100 },
+]
+
+// Derive pipeline tier from value
+function getPipelineTierFromValue(val) {
+  if (!val || val < 50000) return 'none'
+  if (val < 100000) return '50k-100k'
+  if (val < 250000) return '100k-250k'
+  return '250k+'
+}
 
 export default function EditDealModal({ deal, onClose, onSaved }) {
   const [repId, setRepId] = useState(deal.rep_id)
-  const [packageId, setPackageId] = useState(deal.package_id)
-  const [client, setClient] = useState(deal.client_name || '')
-  const [value, setValue] = useState(deal.value?.toString() || '')
+  const [dealType, setDealType] = useState(deal.package_id === 'cloud-assessment' ? 'assessment' : '')
+  const [isNetNew, setIsNetNew] = useState(deal.is_net_new || false)
+  const [pipelineTier, setPipelineTier] = useState(getPipelineTierFromValue(deal.value))
   const [closedAt, setClosedAt] = useState(deal.closed_at ? deal.closed_at.slice(0, 10) : '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [reps, setReps] = useState([])
-  const [packages, setPackages] = useState([])
 
   useEffect(() => {
     supabase.from('sales_reps').select('*').order('name').then(({ data }) => {
       if (data) setReps(data)
     })
-    supabase.from('packages').select('*').order('created_at').then(({ data }) => {
-      if (data) setPackages(data)
-    })
   }, [])
 
-  const selectedPkg = packages.find(p => p.id === packageId)
+  // Calculate total points
+  function calculatePoints() {
+    let points = 0
+    if (dealType === 'assessment') {
+      points = 100 // FY26 assessment base points
+      if (isNetNew) points += 75 // Net new logo bonus
+    }
+    const tierInfo = PIPELINE_TIERS.find(t => t.value === pipelineTier)
+    if (tierInfo) points += tierInfo.points
+    return points
+  }
 
   async function handleSave() {
-    if (!repId) { setError('Please select a sales rep.'); return }
-    if (!packageId) { setError('Please select a package.'); return }
-    if (!client.trim()) { setError('Please enter a client name.'); return }
-    if (!value || parseFloat(value) <= 0) { setError('Deal value must be greater than zero.'); return }
+    if (!repId) { setError('Please select a seller.'); return }
+    if (!dealType) { setError('Please select a deal type.'); return }
 
     setLoading(true)
     setError(null)
 
     const date = closedAt ? new Date(closedAt + 'T12:00:00') : new Date(deal.closed_at)
     const period = getCurrentPeriod(date)
-    const month = date.toISOString().slice(0, 7)
+    const month = getCurrentMonth(date)
+
+    // Calculate value from pipeline tier
+    let value = 0
+    if (pipelineTier === '50k-100k') value = 75000
+    else if (pipelineTier === '100k-250k') value = 175000
+    else if (pipelineTier === '250k+') value = 300000
 
     const { error: err } = await supabase.from('deals').update({
       rep_id: repId,
-      package_id: packageId,
-      package_name: selectedPkg.name,
-      client_name: client.trim(),
-      value: parseFloat(value),
-      points_earned: selectedPkg.points,
+      package_id: 'cloud-assessment',
+      package_name: 'Cloud Assessment',
+      client_name: null,
+      value: value,
+      points_earned: calculatePoints(),
       period,
       month,
+      is_net_new: isNetNew,
       closed_at: date.toISOString(),
     }).eq('id', deal.id)
 
@@ -64,72 +97,82 @@ export default function EditDealModal({ deal, onClose, onSaved }) {
     <div style={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={styles.title}>Edit deal</h2>
+          <h2 style={styles.title}>Edit Deal</h2>
           <button style={styles.close} onClick={onClose}>✕</button>
         </div>
 
         <div style={styles.field}>
-          <label style={styles.label}>Sales rep</label>
+          <label style={styles.label}>Select Seller</label>
           <select style={styles.input} value={repId} onChange={e => { setRepId(e.target.value); setError(null) }}>
-            <option value="">Select a rep...</option>
+            <option value="">Choose a seller...</option>
             {reps.map(rep => (
               <option key={rep.id} value={rep.id}>
-                {rep.country && COUNTRY_FLAG[rep.country] ? `${COUNTRY_FLAG[rep.country]} ` : ''}{rep.name}
+                {SEGMENT_FLAG[rep.segment] || '🌐'} {rep.name} ({rep.segment || 'UK Commercial'})
               </option>
             ))}
           </select>
         </div>
 
         <div style={styles.field}>
-          <label style={styles.label}>Package</label>
-          <div style={styles.packageGrid}>
-            {packages.map(pkg => (
-              <button
-                key={pkg.id}
-                style={{
-                  ...styles.pkgOption,
-                  ...(packageId === pkg.id ? { ...styles.pkgSelected, borderColor: pkg.color } : {}),
-                }}
-                onClick={() => { setPackageId(pkg.id); setError(null) }}
-              >
-                <span style={styles.pkgName}>{pkg.name}</span>
-                <span style={{ ...styles.pkgPts, color: pkg.color }}>+{pkg.points} pts</span>
-              </button>
+          <label style={styles.label}>Deal Type</label>
+          <div style={styles.checkboxGrid}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="radio"
+                name="deal"
+                checked={dealType === 'assessment'}
+                onChange={() => { setDealType('assessment'); setError(null) }}
+                style={styles.checkbox}
+              />
+              <span style={styles.checkboxText}>☁️ Cloud Assessment Closed</span>
+              <span style={styles.checkboxPts}>+100 pts</span>
+            </label>
+          </div>
+        </div>
+
+        <div style={styles.field}>
+          <label style={styles.label}>Bonuses (Optional)</label>
+          <div style={styles.checkboxGrid}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={isNetNew}
+                onChange={e => setIsNetNew(e.target.checked)}
+                style={styles.checkbox}
+              />
+              <span style={styles.checkboxText}>🎯 Net New Logo</span>
+              <span style={styles.checkboxPts}>+75 pts</span>
+            </label>
+          </div>
+        </div>
+
+        <div style={styles.field}>
+          <label style={styles.label}>Pipeline Tier (S2+)</label>
+          <div style={styles.tierGrid}>
+            {PIPELINE_TIERS.map(tier => (
+              <label key={tier.value} style={styles.tierLabel}>
+                <input
+                  type="radio"
+                  name="pipeline"
+                  checked={pipelineTier === tier.value}
+                  onChange={() => setPipelineTier(tier.value)}
+                  style={styles.checkbox}
+                />
+                <span style={styles.tierText}>{tier.label}</span>
+                {tier.points > 0 && <span style={styles.checkboxPts}>+{tier.points} pts</span>}
+              </label>
             ))}
           </div>
         </div>
 
         <div style={styles.field}>
-          <label style={styles.label}>Client name</label>
+          <label style={styles.label}>Date Closed</label>
           <input
             style={styles.input}
-            placeholder="e.g. HSBC, NHS Trust..."
-            value={client}
-            onChange={e => { setClient(e.target.value); setError(null) }}
+            type="date"
+            value={closedAt}
+            onChange={e => { setClosedAt(e.target.value); setError(null) }}
           />
-        </div>
-
-        <div style={styles.twoCol}>
-          <div style={styles.field}>
-            <label style={styles.label}>Deal value (£)</label>
-            <input
-              style={styles.input}
-              type="number"
-              min="1"
-              placeholder="e.g. 45000"
-              value={value}
-              onChange={e => { setValue(e.target.value); setError(null) }}
-            />
-          </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Date closed</label>
-            <input
-              style={styles.input}
-              type="date"
-              value={closedAt}
-              onChange={e => { setClosedAt(e.target.value); setError(null) }}
-            />
-          </div>
         </div>
 
         {error && <div style={styles.error}>{error}</div>}
@@ -139,9 +182,9 @@ export default function EditDealModal({ deal, onClose, onSaved }) {
           <button
             style={{ ...styles.submitBtn, opacity: loading ? 0.7 : 1 }}
             onClick={handleSave}
-            disabled={loading}
+            disabled={loading || !repId || !dealType}
           >
-            {loading ? 'Saving...' : `Save changes${selectedPkg ? ` · ${selectedPkg.points} pts` : ''}`}
+            {loading ? 'Saving...' : `Save Changes · ${calculatePoints()} pts`}
           </button>
         </div>
       </div>
