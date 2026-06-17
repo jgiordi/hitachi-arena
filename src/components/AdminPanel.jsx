@@ -196,7 +196,7 @@ export default function AdminPanel({ currentUser }) {
     <div>
       {/* Log Deal Section - Primary */}
       <h2 style={styles.sectionTitle}>Log Deal</h2>
-      <p style={styles.sub}>Monthly logging of seller activities. Select a seller and use the checkboxes to record their achievements.</p>
+      <p style={styles.sub}>Monthly logging of closed deals. Select a seller and use the checkboxes to record their achievements.</p>
 
       <div style={styles.logSection}>
         <div style={styles.logForm}>
@@ -283,7 +283,7 @@ export default function AdminPanel({ currentUser }) {
 
       {/* Manage sellers */}
       <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage Sellers</h2>
-      <p style={styles.sub}>Add and manage your team members. They'll appear in the activity logger and on the leaderboard.</p>
+      <p style={styles.sub}>Add and manage your team members. They'll appear in the deal logger and on the leaderboard.</p>
 
       <div style={styles.form}>
         <div style={{ ...styles.formRow, gridTemplateColumns: '1fr 1fr 180px auto' }}>
@@ -412,12 +412,12 @@ export default function AdminPanel({ currentUser }) {
       </div>
 
       {/* Manage deals */}
-      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage Logged Activities</h2>
-      <p style={styles.sub}>View and edit the 50 most recent activities. Changes update the leaderboard immediately.</p>
+      <h2 style={{ ...styles.sectionTitle, marginTop: '2.5rem' }}>Manage Logged Deals</h2>
+      <p style={styles.sub}>View and edit the 50 most recent deals. Changes update the leaderboard immediately.</p>
 
       <div style={styles.list}>
         {deals.length === 0 ? (
-          <div style={styles.empty}>No activities logged yet.</div>
+          <div style={styles.empty}>No deals logged yet.</div>
         ) : (
           deals.map(deal => (
             <div key={deal.id} style={styles.dealRow}>
@@ -443,7 +443,7 @@ export default function AdminPanel({ currentUser }) {
                 style={{ ...styles.deleteBtn, opacity: deletingDeal === deal.id ? 0.5 : 1 }}
                 onClick={() => deleteDeal(deal.id)}
                 disabled={deletingDeal === deal.id}
-                title="Delete activity"
+                title="Delete deal"
               >
                 ✕
               </button>
