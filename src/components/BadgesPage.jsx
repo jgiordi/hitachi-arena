@@ -217,24 +217,31 @@ export default function BadgesPage() {
         
         <div style={styles.rulesGrid}>
           <div style={styles.ruleCard}>
-            <div style={styles.ruleHeader}>Points Scoring</div>
+            <div style={styles.ruleHeader}>Core — Deals</div>
             <ul style={styles.ruleList}>
-              <li>FY25 Assessment: +50 pts</li>
-              <li>FY26 Assessment: +100 pts</li>
-              <li>2nd Deal Bonus: +25 pts</li>
-              <li>3rd+ Deal (each): +50 pts</li>
-              <li>Same Account Bonus: +50 pts</li>
-              <li>Net New Logo: +75 pts</li>
-              <li>2 Deals in Quarter: +100 pts</li>
+              <li>Cloud Assessment closed (FY25): <strong>25 pts</strong></li>
+              <li>Cloud Assessment closed (FY26): <strong>100 pts</strong></li>
+              <li>Second assessment sold: <strong>+25 bonus</strong></li>
+              <li>Third+ assessments sold: <strong>+50 bonus</strong></li>
+              <li>Multiple assessments, same account: <strong>+25 pts</strong></li>
             </ul>
           </div>
 
           <div style={styles.ruleCard}>
-            <div style={styles.ruleHeader}>Pipeline Thresholds</div>
+            <div style={styles.ruleHeader}>Milestones</div>
             <ul style={styles.ruleList}>
-              <li>£50k – £100k: +25 pts</li>
-              <li>£100k – £250k: +50 pts</li>
-              <li>£250k+: +100 pts</li>
+              <li>Net new logo assessment sale: <strong>+75 bonus</strong></li>
+              <li>Two deals closed within a quarter: <strong>+50 bonus</strong></li>
+            </ul>
+          </div>
+
+          <div style={styles.ruleCard}>
+            <div style={styles.ruleHeader}>Follow-on Pipeline (S2+)</div>
+            <ul style={styles.ruleList}>
+              <li>£50k – £100k pipeline: <strong>25 pts</strong></li>
+              <li>£100k – £250k pipeline: <strong>50 pts</strong></li>
+              <li>£250k+ pipeline: <strong>100 pts</strong></li>
+              <li style={{fontSize: '10px', fontStyle: 'italic', marginTop: '6px'}}>France & Germany: Euro values recorded in GBP</li>
             </ul>
           </div>
 

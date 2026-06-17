@@ -18,18 +18,18 @@ const SEGMENT_LABELS = {
   'LTS': 'LTS',
 }
 
-// Scoring Rules
+// Scoring Rules (per official Cloud Cup Scoring Model)
 const SCORING = {
-  FY25_ASSESSMENT: 50,      // FY25 Assessments
-  FY26_ASSESSMENT: 100,     // FY26 Assessments
-  SECOND_DEAL_BONUS: 25,    // 2nd Deal Bonus
-  THIRD_PLUS_BONUS: 50,     // 3rd+ Deal Bonus (per deal)
-  SAME_ACCOUNT_BONUS: 50,   // Multiple Assessments (same account)
-  NET_NEW_LOGO: 75,         // Net New Logo Bonus
-  TWO_IN_QUARTER: 100,      // Two Deals in Quarter Bonus
-  PIPELINE_50K_100K: 25,    // Pipeline £50k–£100k
-  PIPELINE_100K_250K: 50,   // Pipeline £100k–£250k
-  PIPELINE_250K_PLUS: 100,  // Pipeline £250k+
+  FY25_ASSESSMENT: 25,      // Cloud Assessment closed (FY25)
+  FY26_ASSESSMENT: 100,     // Cloud Assessment closed (FY26)
+  SECOND_DEAL_BONUS: 25,    // Second assessment sold
+  THIRD_PLUS_BONUS: 50,     // Third+ assessments sold (per deal)
+  SAME_ACCOUNT_BONUS: 25,   // Multiple assessments, same account
+  NET_NEW_LOGO: 75,         // Net new logo assessment sale
+  TWO_IN_QUARTER: 50,       // Two deals closed within a quarter
+  PIPELINE_50K_100K: 25,    // £50k–£100k pipeline created
+  PIPELINE_100K_250K: 50,   // £100k–£250k pipeline created
+  PIPELINE_250K_PLUS: 100,  // £250k+ pipeline created
 }
 
 export default function BreakdownPage() {
@@ -281,31 +281,32 @@ export default function BreakdownPage() {
 
       {/* Scoring Rules Reference */}
       <div style={styles.scoringSection}>
-        <h3 style={styles.scoringTitle}>Scoring Rules</h3>
+        <h3 style={styles.scoringTitle}>Cloud Cup Scoring Model</h3>
         <div style={styles.scoringGrid}>
           <div style={styles.scoringCard}>
-            <div style={styles.scoringHeader}>Cloud Assessments</div>
-            <div style={styles.scoringRule}>FY25 Assessment: <strong>+{SCORING.FY25_ASSESSMENT} pts</strong></div>
-            <div style={styles.scoringRule}>FY26 Assessment: <strong>+{SCORING.FY26_ASSESSMENT} pts</strong></div>
+            <div style={styles.scoringHeader}>Core — Deals</div>
+            <div style={styles.scoringRule}>Cloud Assessment closed (FY25): <strong>{SCORING.FY25_ASSESSMENT} pts</strong></div>
+            <div style={styles.scoringRule}>Cloud Assessment closed (FY26): <strong>{SCORING.FY26_ASSESSMENT} pts</strong></div>
+            <div style={styles.scoringRule}>Second assessment sold: <strong>+{SCORING.SECOND_DEAL_BONUS} bonus</strong></div>
+            <div style={styles.scoringRule}>Third+ assessments sold: <strong>+{SCORING.THIRD_PLUS_BONUS} bonus</strong></div>
+            <div style={styles.scoringRule}>Multiple assessments, same account: <strong>+{SCORING.SAME_ACCOUNT_BONUS} pts</strong></div>
           </div>
           <div style={styles.scoringCard}>
-            <div style={styles.scoringHeader}>Deal Bonuses</div>
-            <div style={styles.scoringRule}>2nd Deal: <strong>+{SCORING.SECOND_DEAL_BONUS} pts</strong></div>
-            <div style={styles.scoringRule}>3rd+ Deal (each): <strong>+{SCORING.THIRD_PLUS_BONUS} pts</strong></div>
+            <div style={styles.scoringHeader}>Milestones</div>
+            <div style={styles.scoringRule}>Net new logo assessment sale: <strong>+{SCORING.NET_NEW_LOGO} bonus</strong></div>
+            <div style={styles.scoringRule}>Two deals closed within a quarter: <strong>+{SCORING.TWO_IN_QUARTER} bonus</strong></div>
           </div>
           <div style={styles.scoringCard}>
-            <div style={styles.scoringHeader}>Activity Bonuses</div>
-            <div style={styles.scoringRule}>Same Account: <strong>+{SCORING.SAME_ACCOUNT_BONUS} pts</strong></div>
-            <div style={styles.scoringRule}>Net New Logo: <strong>+{SCORING.NET_NEW_LOGO} pts</strong></div>
-            <div style={styles.scoringRule}>2 Deals in Quarter: <strong>+{SCORING.TWO_IN_QUARTER} pts</strong></div>
-          </div>
-          <div style={styles.scoringCard}>
-            <div style={styles.scoringHeader}>Pipeline Thresholds</div>
-            <div style={styles.scoringRule}>£50k–£100k: <strong>+{SCORING.PIPELINE_50K_100K} pts</strong></div>
-            <div style={styles.scoringRule}>£100k–£250k: <strong>+{SCORING.PIPELINE_100K_250K} pts</strong></div>
-            <div style={styles.scoringRule}>£250k+: <strong>+{SCORING.PIPELINE_250K_PLUS} pts</strong></div>
+            <div style={styles.scoringHeader}>Follow-on Pipeline (S2+)</div>
+            <div style={styles.scoringRule}>£50k – £100k pipeline created: <strong>{SCORING.PIPELINE_50K_100K} pts</strong></div>
+            <div style={styles.scoringRule}>£100k – £250k pipeline created: <strong>{SCORING.PIPELINE_100K_250K} pts</strong></div>
+            <div style={styles.scoringRule}>£250k+ pipeline created: <strong>{SCORING.PIPELINE_250K_PLUS} pts</strong></div>
+            <div style={{...styles.scoringRule, fontSize: '10px', fontStyle: 'italic', marginTop: '8px', color: 'var(--text3)'}}>
+              🌐 France & Germany: Euro values recorded in GBP for equality
+            </div>
           </div>
         </div>
+        <div style={styles.scoringFooter}>Deals and pipeline logged monthly</div>
       </div>
     </div>
   )
@@ -449,5 +450,12 @@ const styles = {
     fontSize: '12px',
     color: 'var(--text2)',
     marginBottom: '4px',
+  },
+  scoringFooter: {
+    marginTop: '1rem',
+    fontSize: '11px',
+    color: 'var(--text3)',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 }
