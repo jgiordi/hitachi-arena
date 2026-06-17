@@ -10,40 +10,46 @@ const SEGMENT_FLAG = {
   'LTS': '🌐',
 }
 
+// Pipeline tier options
+const PIPELINE_TIERS = [
+  { value: 'none', label: 'No pipeline', points: 0 },
+  { value: '50k-100k', label: '£50k – £100k', points: 25 },
+  { value: '100k-250k', label: '£100k – £250k', points: 50 },
+  { value: '250k+', label: '£250k+', points: 100 },
+]
+
 export default function LogDealModal({ onClose, currentUser }) {
-  const [packageId, setPackageId] = useState('')
   const [repId, setRepId] = useState('')
-  const [client, setClient] = useState('')
-  const [value, setValue] = useState('')
+  const [dealType, setDealType] = useState('')
+  const [isNetNew, setIsNetNew] = useState(false)
+  const [pipelineTier, setPipelineTier] = useState('none')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
   const [reps, setReps] = useState([])
-  const [packages, setPackages] = useState([])
 
   useEffect(() => {
     supabase.from('sales_reps').select('*').order('name').then(({ data }) => {
       if (data) setReps(data)
     })
-    supabase.from('packages').select('*').order('created_at').then(({ data }) => {
-      if (data) {
-        setPackages(data)
-        if (data.length === 1) setPackageId(data[0].id)
-      }
-    })
   }, [])
 
-  const selectedPkg = packages.find(p => p.id === packageId)
+  // Calculate total points
+  function calculatePoints() {
+    let points = 0
+    if (dealType === 'assessment') {
+      points = 100 // FY26 assessment base points
+      if (isNetNew) points += 75 // Net new logo bonus
+    }
+    const tierInfo = PIPELINE_TIERS.find(t => t.value === pipelineTier)
+    if (tierInfo) points += tierInfo.points
+    return points
+  }
 
   async function handleSubmit() {
-    if (!repId) { setError('Please select a sales rep.'); return }
-    if (!packageId) { setError('Please select a package.'); return }
-    if (!client) { setError('Please enter a client name.'); return }
-    if (!value) { setError('Please enter a deal value.'); return }
-    if (parseFloat(value) <= 0) {
-      setError('Deal value must be greater than zero.')
-      return
-    }
+    if (!repId) { setError('Please select a seller.'); return }
+    if (!dealType) { setError('Please select a deal type.'); return }
+    
     setLoading(true)
     setError(null)
 
@@ -51,16 +57,23 @@ export default function LogDealModal({ onClose, currentUser }) {
     const period = getCurrentPeriod(now)
     const month = getCurrentMonth(now)
 
+    // Calculate value from pipeline tier
+    let value = 0
+    if (pipelineTier === '50k-100k') value = 75000
+    else if (pipelineTier === '100k-250k') value = 175000
+    else if (pipelineTier === '250k+') value = 300000
+
     const { error: err } = await supabase.from('deals').insert({
       rep_id: repId,
       logged_by: currentUser?.id || null,
-      package_id: packageId,
-      package_name: selectedPkg.name,
-      client_name: client,
-      value: parseFloat(value),
-      points_earned: selectedPkg.points,
+      package_id: 'cloud-assessment',
+      package_name: 'Cloud Assessment',
+      client_name: null,
+      value: value,
+      points_earned: calculatePoints(),
       period,
       month,
+      is_net_new: isNetNew,
       closed_at: now.toISOString(),
     })
 
@@ -77,7 +90,7 @@ export default function LogDealModal({ onClose, currentUser }) {
     <div style={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={styles.title}>Log a deal</h2>
+          <h2 style={styles.title}>Log Deal</h2>
           <button style={styles.close} onClick={onClose}>✕</button>
         </div>
 
@@ -85,17 +98,17 @@ export default function LogDealModal({ onClose, currentUser }) {
           <div style={styles.success}>
             <div style={styles.successIcon}>🎉</div>
             <div style={styles.successTitle}>Deal logged!</div>
-            <div style={styles.successSub}>+{selectedPkg?.points} points added to your score</div>
+            <div style={styles.successSub}>+{calculatePoints()} points added to the score</div>
           </div>
         ) : (
           <>
             <div style={styles.field}>
-              <label style={styles.label}>Sales rep</label>
+              <label style={styles.label}>Select Seller</label>
               <select style={styles.input} value={repId} onChange={e => { setRepId(e.target.value); setError(null) }}>
-                <option value="">Select a rep...</option>
+                <option value="">Choose a seller...</option>
                 {reps.map(rep => (
                   <option key={rep.id} value={rep.id}>
-                    {rep.segment && SEGMENT_FLAG[rep.segment] ? `${SEGMENT_FLAG[rep.segment]} ` : ''}{rep.name}
+                    {SEGMENT_FLAG[rep.segment] || '🌐'} {rep.name} ({rep.segment || 'UK Commercial'})
                   </option>
                 ))}
               </select>
@@ -103,44 +116,55 @@ export default function LogDealModal({ onClose, currentUser }) {
             </div>
 
             <div style={styles.field}>
-              <label style={styles.label}>Package</label>
-              <div style={styles.packageGrid}>
-                {packages.map(pkg => (
-                  <button
-                    key={pkg.id}
-                    style={{
-                      ...styles.pkgOption,
-                      ...(packageId === pkg.id ? { ...styles.pkgSelected, borderColor: pkg.color } : {}),
-                    }}
-                    onClick={() => { setPackageId(pkg.id); setError(null) }}
-                  >
-                    <span style={styles.pkgName}>{pkg.name}</span>
-                    <span style={{ ...styles.pkgPts, color: pkg.color }}>+{pkg.points} pts</span>
-                  </button>
-                ))}
+              <label style={styles.label}>Deal Type</label>
+              <div style={styles.checkboxGrid}>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="radio"
+                    name="deal"
+                    checked={dealType === 'assessment'}
+                    onChange={() => { setDealType('assessment'); setError(null) }}
+                    style={styles.checkbox}
+                  />
+                  <span style={styles.checkboxText}>☁️ Cloud Assessment Closed</span>
+                  <span style={styles.checkboxPts}>+100 pts</span>
+                </label>
               </div>
             </div>
 
             <div style={styles.field}>
-              <label style={styles.label}>Client name</label>
-              <input
-                style={styles.input}
-                placeholder="e.g. HSBC, NHS Trust, Rolls Royce..."
-                value={client}
-                onChange={e => { setClient(e.target.value); setError(null) }}
-              />
+              <label style={styles.label}>Bonuses (Optional)</label>
+              <div style={styles.checkboxGrid}>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={isNetNew}
+                    onChange={e => setIsNetNew(e.target.checked)}
+                    style={styles.checkbox}
+                  />
+                  <span style={styles.checkboxText}>🎯 Net New Logo</span>
+                  <span style={styles.checkboxPts}>+75 pts</span>
+                </label>
+              </div>
             </div>
 
             <div style={styles.field}>
-              <label style={styles.label}>Deal value (£)</label>
-              <input
-                style={styles.input}
-                type="number"
-                min="0"
-                placeholder="e.g. 45000"
-                value={value}
-                onChange={e => { setValue(e.target.value); setError(null) }}
-              />
+              <label style={styles.label}>Pipeline Tier (S2+)</label>
+              <div style={styles.tierGrid}>
+                {PIPELINE_TIERS.map(tier => (
+                  <label key={tier.value} style={styles.tierLabel}>
+                    <input
+                      type="radio"
+                      name="pipeline"
+                      checked={pipelineTier === tier.value}
+                      onChange={() => setPipelineTier(tier.value)}
+                      style={styles.checkbox}
+                    />
+                    <span style={styles.tierText}>{tier.label}</span>
+                    {tier.points > 0 && <span style={styles.checkboxPts}>+{tier.points} pts</span>}
+                  </label>
+                ))}
+              </div>
             </div>
 
             {error && <div style={styles.error}>{error}</div>}
@@ -150,9 +174,9 @@ export default function LogDealModal({ onClose, currentUser }) {
               <button
                 style={{ ...styles.submitBtn, opacity: loading ? 0.7 : 1 }}
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || !repId || !dealType}
               >
-                {loading ? 'Saving...' : `Log deal${selectedPkg ? ` · +${selectedPkg.points} pts` : ''}`}
+                {loading ? 'Saving...' : `Log Deal · ${calculatePoints()} pts`}
               </button>
             </div>
           </>
@@ -177,7 +201,7 @@ const styles = {
     background: 'var(--surface)',
     borderRadius: 'var(--radius-lg)',
     width: '100%',
-    maxWidth: '480px',
+    maxWidth: '520px',
     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
     overflow: 'hidden',
   },
@@ -200,37 +224,13 @@ const styles = {
   field: { padding: '1rem 1.5rem 0' },
   label: {
     display: 'block',
-    fontSize: '12px',
-    fontWeight: '500',
+    fontSize: '11px',
+    fontWeight: '600',
     color: 'var(--text2)',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
     marginBottom: '8px',
   },
-  packageGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '8px',
-  },
-  pkgOption: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: '2px',
-    padding: '10px 12px',
-    background: 'var(--surface2)',
-    border: '1.5px solid transparent',
-    borderRadius: 'var(--radius)',
-    cursor: 'pointer',
-    transition: 'all 0.1s',
-    textAlign: 'left',
-  },
-  pkgSelected: {
-    background: 'var(--surface)',
-    boxShadow: 'var(--shadow)',
-  },
-  pkgName: { fontSize: '13px', fontWeight: '500', color: 'var(--text)' },
-  pkgPts: { fontSize: '11px', fontWeight: '500' },
   input: {
     width: '100%',
     padding: '10px 12px',
@@ -240,6 +240,57 @@ const styles = {
     color: 'var(--text)',
     background: 'var(--surface)',
     outline: 'none',
+  },
+  checkboxGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '12px 14px',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    accentColor: 'var(--red)',
+  },
+  checkboxText: {
+    fontSize: '14px',
+    color: 'var(--text)',
+    flex: 1,
+  },
+  checkboxPts: {
+    fontSize: '13px',
+    fontWeight: '500',
+    color: 'var(--red)',
+  },
+  tierGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '8px',
+  },
+  tierLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 12px',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    cursor: 'pointer',
+    fontSize: '13px',
+  },
+  tierText: {
+    color: 'var(--text)',
+    flex: 1,
   },
   error: {
     margin: '1rem 1.5rem 0',
